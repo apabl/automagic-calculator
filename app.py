@@ -68,9 +68,9 @@ st.write("---")
 # Starting dataset
 INITIAL_DATA = pd.DataFrame(
     [
-        {"Name": "Item C", "Qtty": 1, "CK": 8.99, "CS": 9.99, "MM": 10.99, "Ago": 1.00},
-        {"Name": "Item A", "Qtty": 4, "CK": 7.99, "CS": 8.49, "MM": 8.49, "Ago": 1.99},
-        {"Name": "Item B", "Qtty": 1, "CK": 0.99, "CS": 0.99, "MM": 1.29, "Ago": 1.00},
+        {"Name": "Counterspell", "Qtty": 1, "CK": 8.99, "CS": 9.99, "MM": 10.99, "Ago": 1.00},
+        {"Name": "Disenchant", "Qtty": 4, "CK": 7.99, "CS": 8.49, "MM": 8.49, "Ago": 1.99},
+        {"Name": "Dark Ritual", "Qtty": 1, "CK": 0.99, "CS": 0.99, "MM": 1.29, "Ago": 1.00},
     ]
 )
 
@@ -82,10 +82,12 @@ input_df = st.data_editor(
     width="stretch",
     key="data_editor",
     column_config={
-        "CK": st.column_config.NumberColumn("CK", format="%.2f", step=0.01),
-        "CS": st.column_config.NumberColumn("CS", format="%.2f", step=0.01),
-        "MM": st.column_config.NumberColumn("MM", format="%.2f", step=0.01),
-        "Ago": st.column_config.NumberColumn("Ago", format="%.2f", step=0.01),
+        "Name": st.column_config.TextColumn("Card Name", width="large"),
+        "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0, width="small"),
+        "CK": st.column_config.NumberColumn("Card Kingdom", format="%.2f", step=0.01, width="medium"),
+        "CS": st.column_config.NumberColumn("CoolStuffInc", format="%.2f", step=0.01, width="medium"),
+        "MM": st.column_config.NumberColumn("Multi Margin", format="%.2f", step=0.01, width="medium"),
+        "Ago": st.column_config.NumberColumn("Agora", format="%.2f", step=0.01, width="medium"),
     }
 )
 
@@ -107,46 +109,16 @@ calc_df["Ago F"] = input_df.apply(
     lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), dolar_blue), axis=1
 )
 
+# 3. Output Grids Side-by-Side with Column Metrics
+st.subheader("2. Final Prices")
+
 # Prepare dataframes for side-by-side grids
 df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
 df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
 df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
 df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
 
-# 3. Output Grids Side-by-Side with Column Metrics
-st.subheader("2. Final Prices")
-
 cols = st.columns(4)
-
-# with cols[0]:
-#     st.markdown("**Details**")
-#     edited_base = st.data_editor(
-#         df_base,
-#         width="stretch",
-#         hide_index=True,
-#         key="grid_base",
-#         disabled=["Name", "Qtty"],
-#         column_config={
-#             "Name": st.column_config.TextColumn("Name", width="medium"),
-#             "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
-#         }
-#     )
-    
-#     # Calculate Selected Qtty using session state of all checkboxes safely
-#     ck_s = st.session_state.get("grid_ck", df_ck)
-#     cs_s = st.session_state.get("grid_cs", df_cs)
-#     mm_s = st.session_state.get("grid_mm", df_mm)
-#     ago_s = st.session_state.get("grid_ago", df_ago)
-    
-#     chk_ck = ck_s["✓"] if isinstance(ck_s, pd.DataFrame) and "✓" in ck_s.columns else pd.Series([False]*len(df_base))
-#     chk_cs = cs_s["✓"] if isinstance(cs_s, pd.DataFrame) and "✓" in cs_s.columns else pd.Series([False]*len(df_base))
-#     chk_mm = mm_s["✓"] if isinstance(mm_s, pd.DataFrame) and "✓" in mm_s.columns else pd.Series([False]*len(df_base))
-#     chk_ago = ago_s["✓"] if isinstance(ago_s, pd.DataFrame) and "✓" in ago_s.columns else pd.Series([False]*len(df_base))
-    
-#     any_checked = chk_ck | chk_cs | chk_mm | chk_ago
-#     qtty_sum = edited_base.loc[any_checked, "Qtty"].sum() if len(edited_base) == len(any_checked) else 0
-    
-#     st.metric("Selected Qtty", int(qtty_sum))
 
 with cols[0]:
     edited_ck = st.data_editor(
@@ -157,11 +129,11 @@ with cols[0]:
         disabled=["CK F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
-            "CK F": st.column_config.NumberColumn("CK F", format="$ %d", width="medium"),
+            "CK F": st.column_config.NumberColumn("Card Kingdom", format="$ %d", width="medium"),
         }
     )
     ck_sum = edited_ck.loc[edited_ck["✓"], "CK F"].sum() if "✓" in edited_ck.columns else 0
-    st.metric("Total CK", f"$ {int(ck_sum):,}")
+    st.metric("Subtotal", f"$ {int(ck_sum):,}")
 
 with cols[1]:
     edited_cs = st.data_editor(
@@ -172,11 +144,11 @@ with cols[1]:
         disabled=["CS F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
-            "CS F": st.column_config.NumberColumn("CS F", format="$ %d", width="medium"),
+            "CS F": st.column_config.NumberColumn("CoolStuffInc", format="$ %d", width="medium"),
         }
     )
     cs_sum = edited_cs.loc[edited_cs["✓"], "CS F"].sum() if "✓" in edited_cs.columns else 0
-    st.metric("Total CS", f"$ {int(cs_sum):,}")
+    st.metric("Subtotal", f"$ {int(cs_sum):,}")
 
 with cols[2]:
     edited_mm = st.data_editor(
@@ -187,11 +159,11 @@ with cols[2]:
         disabled=["MM F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
-            "MM F": st.column_config.NumberColumn("MM F", format="$ %d", width="medium"),
+            "MM F": st.column_config.NumberColumn("Multi Margin", format="$ %d", width="medium"),
         }
     )
     mm_sum = edited_mm.loc[edited_mm["✓"], "MM F"].sum() if "✓" in edited_mm.columns else 0
-    st.metric("Total MM", f"$ {int(mm_sum):,}")
+    st.metric("Subtotal", f"$ {int(mm_sum):,}")
 
 with cols[3]:
     edited_ago = st.data_editor(
@@ -202,8 +174,8 @@ with cols[3]:
         disabled=["Ago F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
-            "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d", width="medium"),
+            "Ago F": st.column_config.NumberColumn("Agora", format="$ %d", width="medium"),
         }
     )
     ago_sum = edited_ago.loc[edited_ago["✓"], "Ago F"].sum() if "✓" in edited_ago.columns else 0
-    st.metric("Total Ago", f"$ {int(ago_sum):,}")
+    st.metric("Subtotal", f"$ {int(ago_sum):,}")
