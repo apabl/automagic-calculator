@@ -6,5 +6,15 @@ dist/
 wheels/
 *.egg-info
 
+# Python bytecode
+*.pyc
+
 # Virtual environments
 .venv
+
+# Environment variables & secrets
+.env
+.streamlit/secrets.toml
+
+# OS junk
+.DS_Store
