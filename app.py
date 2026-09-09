@@ -89,7 +89,7 @@ input_df = st.data_editor(
     }
 )
 
-# 2. Process Calculations & Prepare Checkbox Grid
+# 2. Process Calculations
 calc_df = pd.DataFrame()
 calc_df["Name"] = input_df["Name"]
 calc_df["Qtty"] = input_df["Qtty"].fillna(0).astype(int)
@@ -107,60 +107,96 @@ calc_df["Ago F"] = input_df.apply(
     lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), dolar_blue), axis=1
 )
 
-# Construct Dataframe with interspersed Checkbox columns
-grid_df = pd.DataFrame({
-    "Name": calc_df["Name"],
-    "Qtty": calc_df["Qtty"],
-    "✓ CK": False,
-    "CK F": calc_df["CK F"],
-    "✓ CS": False,
-    "CS F": calc_df["CS F"],
-    "✓ MM": False,
-    "MM F": calc_df["MM F"],
-    "✓ Ago": False,
-    "Ago F": calc_df["Ago F"],
-})
+# 3. Output Grids Side-by-Side
+st.subheader("2. Final Prices")
 
-# 3. Output Grid with Interactive Checkboxes
-st.subheader("2. Final Prices (Check cells to sum column totals)")
+cols = st.columns(5)
 
-edited_grid = st.data_editor(
-    grid_df,
-    width="stretch",
-    hide_index=True,
-    key="output_grid",
-    disabled=["Name", "Qtty", "CK F", "CS F", "MM F", "Ago F"],
-    column_config={
-        "Name": st.column_config.TextColumn("Name", width="medium"),
-        "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
-        
-        "✓ CK": st.column_config.CheckboxColumn("", default=False, width="small"),
-        "CK F": st.column_config.NumberColumn("CK F", format="$ %d", width="medium"),
-        
-        "✓ CS": st.column_config.CheckboxColumn("", default=False, width="small"),
-        "CS F": st.column_config.NumberColumn("CS F", format="$ %d", width="medium"),
-        
-        "✓ MM": st.column_config.CheckboxColumn("", default=False, width="small"),
-        "MM F": st.column_config.NumberColumn("MM F", format="$ %d", width="medium"),
-        
-        "✓ Ago": st.column_config.CheckboxColumn("", default=False, width="small"),
-        "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d", width="medium"),
-    }
-)
+with cols[0]:
+    df_base = calc_df[["Name", "Qtty"]].copy()
+    edited_base = st.data_editor(
+        df_base,
+        width="stretch",
+        hide_index=True,
+        key="grid_base",
+        disabled=["Name", "Qtty"],
+        column_config={
+            "Name": st.column_config.TextColumn("Name", width="medium"),
+            "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
+        }
+    )
 
-# Calculate dynamic sums for checked cells
-ck_sum = edited_grid.loc[edited_grid["✓ CK"], "CK F"].sum()
-cs_sum = edited_grid.loc[edited_grid["✓ CS"], "CS F"].sum()
-mm_sum = edited_grid.loc[edited_grid["✓ MM"], "MM F"].sum()
-ago_sum = edited_grid.loc[edited_grid["✓ Ago"], "Ago F"].sum()
+with cols[1]:
+    df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
+    edited_ck = st.data_editor(
+        df_ck,
+        width="stretch",
+        hide_index=True,
+        key="grid_ck",
+        disabled=["CK F"],
+        column_config={
+            "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
+            "CK F": st.column_config.NumberColumn("CK F", format="$ %d", width="medium"),
+        }
+    )
 
-# Quantity sum for any row where at least one provider is checked
+with cols[2]:
+    df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
+    edited_cs = st.data_editor(
+        df_cs,
+        width="stretch",
+        hide_index=True,
+        key="grid_cs",
+        disabled=["CS F"],
+        column_config={
+            "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
+            "CS F": st.column_config.NumberColumn("CS F", format="$ %d", width="medium"),
+        }
+    )
+
+with cols[3]:
+    df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
+    edited_mm = st.data_editor(
+        df_mm,
+        width="stretch",
+        hide_index=True,
+        key="grid_mm",
+        disabled=["MM F"],
+        column_config={
+            "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
+            "MM F": st.column_config.NumberColumn("MM F", format="$ %d", width="medium"),
+        }
+    )
+
+with cols[4]:
+    df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
+    edited_ago = st.data_editor(
+        df_ago,
+        width="stretch",
+        hide_index=True,
+        key="grid_ago",
+        disabled=["Ago F"],
+        column_config={
+            "✓": st.column_config.CheckboxColumn("✓", default=False, width="small"),
+            "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d", width="medium"),
+        }
+    )
+
+# Calculate dynamic sums from the individual grid states
+ck_sum = edited_ck.loc[edited_ck["✓"], "CK F"].sum()
+cs_sum = edited_cs.loc[edited_cs["✓"], "CS F"].sum()
+mm_sum = edited_mm.loc[edited_mm["✓"], "MM F"].sum()
+ago_sum = edited_ago.loc[edited_ago["✓"], "Ago F"].sum()
+
+# Quantity sum for any row where at least one provider checkbox is checked
 any_checked = (
-    edited_grid["✓ CK"] | edited_grid["✓ CS"] | edited_grid["✓ MM"] | edited_grid["✓ Ago"]
+    edited_ck["✓"] | edited_cs["✓"] | edited_mm["✓"] | edited_ago["✓"]
 )
-qtty_sum = edited_grid.loc[any_checked, "Qtty"].sum()
+qtty_sum = edited_base.loc[any_checked, "Qtty"].sum()
 
-total_checked_count = edited_grid[["✓ CK", "✓ CS", "✓ MM", "✓ Ago"]].sum().sum()
+total_checked_count = (
+    edited_ck["✓"].sum() + edited_cs["✓"].sum() + edited_mm["✓"].sum() + edited_ago["✓"].sum()
+)
 
 # Display dynamic summary table
 if total_checked_count > 0:
