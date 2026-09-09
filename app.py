@@ -6,10 +6,8 @@ import requests
 st.set_page_config(page_title="Grid Calculator", layout="wide")
 
 
-
 @st.cache_data(ttl=600)
 def get_dolar_blue_venta():
-    """ Fetchs Dólar Blue (Venta) rate """
     try:
         url = "https://dolarapi.com/v1/dolares/blue"
         response = requests.get(url, timeout=5)
@@ -19,24 +17,29 @@ def get_dolar_blue_venta():
         pass
     return 1.0
 
+
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     if pd.isna(qtty) or pd.isna(price) or qtty == 0 or price == 0:
         return 0
-    
+
     if price < 1:
         fee = 0.5
     elif price < 20:
         fee = 1.0
     else:
         fee = qtty * price * 0.05
-        
+
     base = (price * qtty) + fee
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
+
 
 def calculate_mm(qtty, mm_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(mm_price) or qtty == 0 or mm_price == 0:
         return 0
-    return int(round(qtty * (mm_price * dolar_blue * (1 + MM_MARGIN / 100) + MM_FIXED_VALUE)))
+    return int(
+        round(qtty * (mm_price * dolar_blue * (1 + MM_MARGIN / 100) + MM_FIXED_VALUE))
+    )
+
 
 def calculate_ago(qtty, ago_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(ago_price) or qtty == 0 or ago_price == 0:
@@ -77,9 +80,30 @@ st.write("---")
 # Starting dataset
 INITIAL_DATA = pd.DataFrame(
     [
-        {"Name": "Counterspell", "Qtty": 1, "CK": 8.99, "CS": 9.99, "MM": 10.99, "Ago": 1.00},
-        {"Name": "Dark Ritual", "Qtty": 1, "CK": 0.99, "CS": 0.99, "MM": 1.29, "Ago": 1.00},
-        {"Name": "Disenchant", "Qtty": 4, "CK": 7.99, "CS": 8.49, "MM": 8.49, "Ago": 1.99},
+        {
+            "Name": "Counterspell",
+            "Qtty": 1,
+            "CK": 8.99,
+            "CS": 9.99,
+            "MM": 10.99,
+            "Ago": 1.00,
+        },
+        {
+            "Name": "Dark Ritual",
+            "Qtty": 1,
+            "CK": 0.99,
+            "CS": 0.99,
+            "MM": 1.29,
+            "Ago": 1.00,
+        },
+        {
+            "Name": "Disenchant",
+            "Qtty": 4,
+            "CK": 7.99,
+            "CS": 8.49,
+            "MM": 8.49,
+            "Ago": 1.99,
+        },
     ]
 )
 
@@ -93,11 +117,19 @@ input_df = st.data_editor(
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="large"),
         "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0),
-        "CK": st.column_config.NumberColumn("Card Kingdom", format="%.2f", step=0.01, width="medium"),
-        "CS": st.column_config.NumberColumn("CoolStuffInc", format="%.2f", step=0.01, width="medium"),
-        "MM": st.column_config.NumberColumn("Multi Margin", format="%.2f", step=0.01, width="medium"),
-        "Ago": st.column_config.NumberColumn("Agora", format="%.2f", step=0.01, width="medium"),
-    }
+        "CK": st.column_config.NumberColumn(
+            "Card Kingdom", format="%.2f", step=0.01, width="medium"
+        ),
+        "CS": st.column_config.NumberColumn(
+            "CoolStuffInc", format="%.2f", step=0.01, width="medium"
+        ),
+        "MM": st.column_config.NumberColumn(
+            "Multi Margin", format="%.2f", step=0.01, width="medium"
+        ),
+        "Ago": st.column_config.NumberColumn(
+            "Agora", format="%.2f", step=0.01, width="medium"
+        ),
+    },
 )
 
 # 2. Process Calculations
@@ -106,16 +138,23 @@ calc_df["Name"] = input_df["Name"]
 calc_df["Qtty"] = input_df["Qtty"].fillna(0).astype(int)
 
 calc_df["CK F"] = input_df.apply(
-    lambda row: calculate_diego_tcg(row.get("Qtty", 0), row.get("CK", 0), CK_MARGIN, dolar_blue), axis=1
+    lambda row: calculate_diego_tcg(
+        row.get("Qtty", 0), row.get("CK", 0), CK_MARGIN, dolar_blue
+    ),
+    axis=1,
 )
 calc_df["CS F"] = input_df.apply(
-    lambda row: calculate_diego_tcg(row.get("Qtty", 0), row.get("CS", 0), CS_MARGIN, dolar_blue), axis=1
+    lambda row: calculate_diego_tcg(
+        row.get("Qtty", 0), row.get("CS", 0), CS_MARGIN, dolar_blue
+    ),
+    axis=1,
 )
 calc_df["MM F"] = input_df.apply(
     lambda row: calculate_mm(row.get("Qtty", 0), row.get("MM", 0), dolar_blue), axis=1
 )
 calc_df["Ago F"] = input_df.apply(
-    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), AGORA_DOLAR_REF), axis=1
+    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), AGORA_DOLAR_REF),
+    axis=1,
 )
 
 # 3. Output Grids Side-by-Side with Column Metrics
@@ -140,7 +179,7 @@ with cols[0]:
         column_config={
             "Name": st.column_config.TextColumn("Card Name", width="medium"),
             "Qtty": st.column_config.NumberColumn("Qtty", format="%d"),
-        }
+        },
     )
 
 with cols[1]:
@@ -152,10 +191,14 @@ with cols[1]:
         disabled=["CK F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False),
-            "CK F": st.column_config.NumberColumn("Card Kingdom", format="$ %d", width="medium"),
-        }
+            "CK F": st.column_config.NumberColumn(
+                "Card Kingdom", format="$ %d", width="medium"
+            ),
+        },
     )
-    ck_sum = edited_ck.loc[edited_ck["✓"], "CK F"].sum() if "✓" in edited_ck.columns else 0
+    ck_sum = (
+        edited_ck.loc[edited_ck["✓"], "CK F"].sum() if "✓" in edited_ck.columns else 0
+    )
     st.metric("Subtotal", f"$ {int(ck_sum):,}")
 
 with cols[2]:
@@ -167,10 +210,14 @@ with cols[2]:
         disabled=["CS F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False),
-            "CS F": st.column_config.NumberColumn("CoolStuffInc", format="$ %d", width="medium"),
-        }
+            "CS F": st.column_config.NumberColumn(
+                "CoolStuffInc", format="$ %d", width="medium"
+            ),
+        },
     )
-    cs_sum = edited_cs.loc[edited_cs["✓"], "CS F"].sum() if "✓" in edited_cs.columns else 0
+    cs_sum = (
+        edited_cs.loc[edited_cs["✓"], "CS F"].sum() if "✓" in edited_cs.columns else 0
+    )
     st.metric("Subtotal", f"$ {int(cs_sum):,}")
 
 with cols[3]:
@@ -182,10 +229,14 @@ with cols[3]:
         disabled=["MM F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False),
-            "MM F": st.column_config.NumberColumn("Multi Margin", format="$ %d", width="medium"),
-        }
+            "MM F": st.column_config.NumberColumn(
+                "Multi Margin", format="$ %d", width="medium"
+            ),
+        },
     )
-    mm_sum = edited_mm.loc[edited_mm["✓"], "MM F"].sum() if "✓" in edited_mm.columns else 0
+    mm_sum = (
+        edited_mm.loc[edited_mm["✓"], "MM F"].sum() if "✓" in edited_mm.columns else 0
+    )
     st.metric("Subtotal", f"$ {int(mm_sum):,}")
 
 with cols[4]:
@@ -197,8 +248,14 @@ with cols[4]:
         disabled=["Ago F"],
         column_config={
             "✓": st.column_config.CheckboxColumn("✓", default=False),
-            "Ago F": st.column_config.NumberColumn("Agora", format="$ %d", width="medium"),
-        }
+            "Ago F": st.column_config.NumberColumn(
+                "Agora", format="$ %d", width="medium"
+            ),
+        },
     )
-    ago_sum = edited_ago.loc[edited_ago["✓"], "Ago F"].sum() if "✓" in edited_ago.columns else 0
+    ago_sum = (
+        edited_ago.loc[edited_ago["✓"], "Ago F"].sum()
+        if "✓" in edited_ago.columns
+        else 0
+    )
     st.metric("Subtotal", f"$ {int(ago_sum):,}")
