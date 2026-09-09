@@ -129,17 +129,22 @@ edited_grid = st.data_editor(
     width="stretch",
     hide_index=True,
     key="output_grid",
-    disabled=["Name", "Qtty", "CK F", "CS F", "MM F", "Ago F"],  # Only allow checkbox toggles
+    disabled=["Name", "Qtty", "CK F", "CS F", "MM F", "Ago F"],
     column_config={
-        "Qtty": st.column_config.NumberColumn("Qtty", format="%d"),
-        "✓ CK": st.column_config.CheckboxColumn("Sel", default=False),
-        "CK F": st.column_config.NumberColumn("CK F", format="$ %d"),
-        "✓ CS": st.column_config.CheckboxColumn("Sel", default=False),
-        "CS F": st.column_config.NumberColumn("CS F", format="$ %d"),
-        "✓ MM": st.column_config.CheckboxColumn("Sel", default=False),
-        "MM F": st.column_config.NumberColumn("MM F", format="$ %d"),
-        "✓ Ago": st.column_config.CheckboxColumn("Sel", default=False),
-        "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d"),
+        "Name": st.column_config.TextColumn("Name", width="medium"),
+        "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
+        
+        "✓ CK": st.column_config.CheckboxColumn("", default=False, width="small"),
+        "CK F": st.column_config.NumberColumn("CK F", format="$ %d", width="medium"),
+        
+        "✓ CS": st.column_config.CheckboxColumn("", default=False, width="small"),
+        "CS F": st.column_config.NumberColumn("CS F", format="$ %d", width="medium"),
+        
+        "✓ MM": st.column_config.CheckboxColumn("", default=False, width="small"),
+        "MM F": st.column_config.NumberColumn("MM F", format="$ %d", width="medium"),
+        
+        "✓ Ago": st.column_config.CheckboxColumn("", default=False, width="small"),
+        "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d", width="medium"),
     }
 )
 
