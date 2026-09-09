@@ -5,22 +5,7 @@ import requests
 # Always call set_page_config first
 st.set_page_config(page_title="Grid Calculator", layout="wide")
 
-# Fixed Constants
-CK_MARGIN = 20.0
-CS_MARGIN = 13.0
 
-# Sidebar - Configurable Constants
-st.sidebar.header("Variables")
-st.sidebar.write("---")
-
-MM_MARGIN = st.sidebar.number_input(
-    "MM Margin (%)", min_value=0.0, value=5.0, step=1.0, format="%.1f"
-)
-MM_FIXED_VALUE = st.sidebar.number_input(
-    "MM Fixed Value ($ ARS)", min_value=0, value=700, step=100
-)
-
-st.sidebar.write("---")
 
 @st.cache_data(ttl=600)
 def get_dolar_blue_venta():
@@ -58,19 +43,43 @@ def calculate_ago(qtty, ago_price, dolar_blue):
         return 0
     return int(round(qtty * ago_price * dolar_blue))
 
-st.title("Interactive Grid Calculator")
+
+# Fixed Constants
+CK_MARGIN = 20.0
+CS_MARGIN = 13.0
+
+# Sidebar - Configurable Constants
+st.sidebar.header("Variables")
+st.sidebar.write("---")
+
+MM_MARGIN = st.sidebar.number_input(
+    "MM Margin (%)", min_value=0.0, value=5.0, step=1.0, format="%.1f"
+)
+MM_FIXED_VALUE = st.sidebar.number_input(
+    "MM Fixed Value ($ ARS)", min_value=0, value=700, step=100
+)
+st.sidebar.write("---")
 
 dolar_blue = get_dolar_blue_venta()
-st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
+AGORA_DOLAR_REF = st.sidebar.number_input(
+    "Agora Dolar Reference ($ ARS)", min_value=0, value=int(dolar_blue), step=10
+)
+st.sidebar.write("---")
+
+
+# Main Page
+st.title("Interactive Grid Calculator")
+
+st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 st.write("---")
 
 # Starting dataset
 INITIAL_DATA = pd.DataFrame(
     [
         {"Name": "Counterspell", "Qtty": 1, "CK": 8.99, "CS": 9.99, "MM": 10.99, "Ago": 1.00},
-        {"Name": "Disenchant", "Qtty": 4, "CK": 7.99, "CS": 8.49, "MM": 8.49, "Ago": 1.99},
         {"Name": "Dark Ritual", "Qtty": 1, "CK": 0.99, "CS": 0.99, "MM": 1.29, "Ago": 1.00},
+        {"Name": "Disenchant", "Qtty": 4, "CK": 7.99, "CS": 8.49, "MM": 8.49, "Ago": 1.99},
     ]
 )
 
@@ -106,7 +115,7 @@ calc_df["MM F"] = input_df.apply(
     lambda row: calculate_mm(row.get("Qtty", 0), row.get("MM", 0), dolar_blue), axis=1
 )
 calc_df["Ago F"] = input_df.apply(
-    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), dolar_blue), axis=1
+    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), AGORA_DOLAR_REF), axis=1
 )
 
 # 3. Output Grids Side-by-Side with Column Metrics
