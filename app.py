@@ -107,27 +107,48 @@ calc_df["Ago F"] = input_df.apply(
     lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), dolar_blue), axis=1
 )
 
-# 3. Output Grids Side-by-Side
+# Prepare dataframes for side-by-side grids
+df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
+df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
+df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
+df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
+
+# 3. Output Grids Side-by-Side with Column Metrics
 st.subheader("2. Final Prices")
 
-cols = st.columns(5)
+cols = st.columns(4)
+
+# with cols[0]:
+#     st.markdown("**Details**")
+#     edited_base = st.data_editor(
+#         df_base,
+#         width="stretch",
+#         hide_index=True,
+#         key="grid_base",
+#         disabled=["Name", "Qtty"],
+#         column_config={
+#             "Name": st.column_config.TextColumn("Name", width="medium"),
+#             "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
+#         }
+#     )
+    
+#     # Calculate Selected Qtty using session state of all checkboxes safely
+#     ck_s = st.session_state.get("grid_ck", df_ck)
+#     cs_s = st.session_state.get("grid_cs", df_cs)
+#     mm_s = st.session_state.get("grid_mm", df_mm)
+#     ago_s = st.session_state.get("grid_ago", df_ago)
+    
+#     chk_ck = ck_s["✓"] if isinstance(ck_s, pd.DataFrame) and "✓" in ck_s.columns else pd.Series([False]*len(df_base))
+#     chk_cs = cs_s["✓"] if isinstance(cs_s, pd.DataFrame) and "✓" in cs_s.columns else pd.Series([False]*len(df_base))
+#     chk_mm = mm_s["✓"] if isinstance(mm_s, pd.DataFrame) and "✓" in mm_s.columns else pd.Series([False]*len(df_base))
+#     chk_ago = ago_s["✓"] if isinstance(ago_s, pd.DataFrame) and "✓" in ago_s.columns else pd.Series([False]*len(df_base))
+    
+#     any_checked = chk_ck | chk_cs | chk_mm | chk_ago
+#     qtty_sum = edited_base.loc[any_checked, "Qtty"].sum() if len(edited_base) == len(any_checked) else 0
+    
+#     st.metric("Selected Qtty", int(qtty_sum))
 
 with cols[0]:
-    df_base = calc_df[["Name", "Qtty"]].copy()
-    edited_base = st.data_editor(
-        df_base,
-        width="stretch",
-        hide_index=True,
-        key="grid_base",
-        disabled=["Name", "Qtty"],
-        column_config={
-            "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Qtty": st.column_config.NumberColumn("Qtty", format="%d", width="small"),
-        }
-    )
-
-with cols[1]:
-    df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
     edited_ck = st.data_editor(
         df_ck,
         width="stretch",
@@ -139,9 +160,10 @@ with cols[1]:
             "CK F": st.column_config.NumberColumn("CK F", format="$ %d", width="medium"),
         }
     )
+    ck_sum = edited_ck.loc[edited_ck["✓"], "CK F"].sum() if "✓" in edited_ck.columns else 0
+    st.metric("Total CK", f"$ {int(ck_sum):,}")
 
-with cols[2]:
-    df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
+with cols[1]:
     edited_cs = st.data_editor(
         df_cs,
         width="stretch",
@@ -153,9 +175,10 @@ with cols[2]:
             "CS F": st.column_config.NumberColumn("CS F", format="$ %d", width="medium"),
         }
     )
+    cs_sum = edited_cs.loc[edited_cs["✓"], "CS F"].sum() if "✓" in edited_cs.columns else 0
+    st.metric("Total CS", f"$ {int(cs_sum):,}")
 
-with cols[3]:
-    df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
+with cols[2]:
     edited_mm = st.data_editor(
         df_mm,
         width="stretch",
@@ -167,9 +190,10 @@ with cols[3]:
             "MM F": st.column_config.NumberColumn("MM F", format="$ %d", width="medium"),
         }
     )
+    mm_sum = edited_mm.loc[edited_mm["✓"], "MM F"].sum() if "✓" in edited_mm.columns else 0
+    st.metric("Total MM", f"$ {int(mm_sum):,}")
 
-with cols[4]:
-    df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
+with cols[3]:
     edited_ago = st.data_editor(
         df_ago,
         width="stretch",
@@ -181,49 +205,5 @@ with cols[4]:
             "Ago F": st.column_config.NumberColumn("Ago F", format="$ %d", width="medium"),
         }
     )
-
-# Calculate dynamic sums from the individual grid states
-ck_sum = edited_ck.loc[edited_ck["✓"], "CK F"].sum()
-cs_sum = edited_cs.loc[edited_cs["✓"], "CS F"].sum()
-mm_sum = edited_mm.loc[edited_mm["✓"], "MM F"].sum()
-ago_sum = edited_ago.loc[edited_ago["✓"], "Ago F"].sum()
-
-# Quantity sum for any row where at least one provider checkbox is checked
-any_checked = (
-    edited_ck["✓"] | edited_cs["✓"] | edited_mm["✓"] | edited_ago["✓"]
-)
-qtty_sum = edited_base.loc[any_checked, "Qtty"].sum()
-
-total_checked_count = (
-    edited_ck["✓"].sum() + edited_cs["✓"].sum() + edited_mm["✓"].sum() + edited_ago["✓"].sum()
-)
-
-# Display dynamic summary table
-if total_checked_count > 0:
-    summary_title = f"Checked Cells Total ({total_checked_count} item(s) selected)"
-else:
-    summary_title = "Checked Cells Total (Check items above to calculate sum)"
-
-totals_df = pd.DataFrame([{
-    "Name": "TOTAL",
-    "Qtty": int(qtty_sum),
-    "CK F": int(ck_sum),
-    "CS F": int(cs_sum),
-    "MM F": int(mm_sum),
-    "Ago F": int(ago_sum),
-}])
-
-st.markdown(f"### {summary_title}")
-st.dataframe(
-    totals_df,
-    width="stretch",
-    hide_index=True,
-    column_config={
-        "Name": st.column_config.TextColumn(""),
-        "Qtty": st.column_config.NumberColumn("Selected Qtty", format="%d"),
-        "CK F": st.column_config.NumberColumn("Total CK", format="$ %d"),
-        "CS F": st.column_config.NumberColumn("Total CS", format="$ %d"),
-        "MM F": st.column_config.NumberColumn("Total MM", format="$ %d"),
-        "Ago F": st.column_config.NumberColumn("Total Ago", format="$ %d"),
-    }
-)
+    ago_sum = edited_ago.loc[edited_ago["✓"], "Ago F"].sum() if "✓" in edited_ago.columns else 0
+    st.metric("Total Ago", f"$ {int(ago_sum):,}")
