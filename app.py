@@ -6,6 +6,59 @@ import streamlit as st
 # Always call set_page_config first
 st.set_page_config(page_title="Grid Calculator", layout="wide")
 
+# Custom Purple Theme Styling via CSS
+st.markdown(
+    """
+    <style>
+    /* Main background and font styling */
+    .stApp {
+        background-color: #f8ccff;
+        color: #3b0764;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #f3e8ff;
+        border-right: 1px solid #d8b4fe;
+    }
+    
+    /* Headers */
+    h1, h2, h3, h4, h5, h6 {
+        color: #581c87 !important;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #7e22ce;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+    }
+    .stButton > button:hover {
+        background-color: #6b21a8;
+        color: white;
+    }
+    
+    /* Metrics (Labels & Values) */
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricLabel"] p {
+        color: #000000 !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #6b21a8 !important;
+    }
+    
+    /* Input Labels (Text input, selectbox, slider, etc.) */
+    [data-testid="stWidgetLabel"] p {
+        color: #000000 !important;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 DATA_FILE = "grid_data.csv"
 
 
