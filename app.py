@@ -2,9 +2,14 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 
 # Always call set_page_config first
 st.set_page_config(page_title="Grid Calculator", layout="wide")
+
+# Initialize the Cookie Controller
+cookie_controller = CookieController(key="cookie_controller")
+COOKIE_KEY = "grid_calculator_data"
 
 
 def local_css(file_name):
@@ -26,11 +31,14 @@ def get_dolar_blue_venta():
 
 
 def load_persistent_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            return pd.read_csv(DATA_FILE)
-        except Exception:
-            pass
+    try:
+        cookies = cookie_controller.getAll()
+        if cookies and COOKIE_KEY in cookies:
+            data_json = cookies[COOKIE_KEY]
+            if data_json:
+                return pd.read_json(data_json, orient="split")
+    except Exception:
+        pass
 
     # Fallback Initial Data
     return pd.DataFrame(
@@ -71,8 +79,10 @@ def data_reset_button():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Yes, Reset", type="primary", use_container_width=True):
-            if os.path.exists(DATA_FILE):
-                os.remove(DATA_FILE)
+            try:
+                cookie_controller.remove(COOKIE_KEY)
+            except Exception:
+                pass
             st.session_state.data = load_persistent_data()
             st.rerun()
     with col2:
@@ -94,12 +104,14 @@ def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     base = (price * qtty) + fee
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
 
+
 def calculate_mm(qtty, mm_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(mm_price) or qtty == 0 or mm_price == 0:
         return 0
     return int(
         round(qtty * (mm_price * dolar_blue * (1 + MM_MARGIN / 100) + MM_FIXED_VALUE))
     )
+
 
 def calculate_ago(qtty, ago_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(ago_price) or qtty == 0 or ago_price == 0:
@@ -111,8 +123,7 @@ def calculate_ago(qtty, ago_price, dolar_blue):
 local_css("styles.css")
 
 
-# Data initialization
-DATA_FILE = "grid_data.csv"
+# Data initialization variables
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
 
@@ -123,7 +134,6 @@ if "data" not in st.session_state:
 
 
 # Sidebar
-# Configurable Constants
 st.sidebar.header("Variables")
 st.sidebar.write("---")
 
@@ -175,11 +185,15 @@ input_df = st.data_editor(
     },
 )
 
-# Check if data changed and auto-save
+# Check if data changed and auto-save to browser cookies
 if not input_df.equals(st.session_state.data):
     st.session_state.data = input_df
-    input_df.to_csv(DATA_FILE, index=False)
-    st.toast("Changes saved automatically!", icon="💾")
+    try:
+        data_json = input_df.to_json(orient="split")
+        cookie_controller.set(COOKIE_KEY, data_json)
+    except Exception as e:
+        st.error(f"Failed to save data to cookies: {e}")
+    st.toast("Changes saved automatically to browser cookie!", icon="💾")
 
 # 2. Process Calculations
 calc_df = pd.DataFrame()

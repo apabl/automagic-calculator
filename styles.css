@@ -17,7 +17,7 @@ h3,
 h4,
 h5,
 h6 {
-    color: #000000 !important;
+    color: black !important;
 }
 
 /* Buttons */
@@ -37,9 +37,13 @@ h6 {
 /* Metrics */
 [data-testid="stMetricValue"] {
     font-size: 1.3rem !important;
+    color: black
+}
+[data-testid="stMetricLabel"] {
+    color: black !important;
 }
 
 /* Inputs */
 [data-testid="stWidgetLabel"] p {
-    color: #000000 !important;
+    color: black !important;
 }
