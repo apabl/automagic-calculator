@@ -63,6 +63,23 @@ def load_persistent_data():
     )
 
 
+@st.dialog("Confirm Data Reset")
+def data_reset_button():
+    st.warning(
+        "Are you sure you want to reset all data back to defaults?  \nAny custom entries will be lost."
+    )
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Yes, Reset", type="primary", use_container_width=True):
+            if os.path.exists(DATA_FILE):
+                os.remove(DATA_FILE)
+            st.session_state.data = load_persistent_data()
+            st.rerun()
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     if pd.isna(qtty) or pd.isna(price) or qtty == 0 or price == 0:
         return 0
@@ -77,14 +94,12 @@ def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     base = (price * qtty) + fee
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
 
-
 def calculate_mm(qtty, mm_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(mm_price) or qtty == 0 or mm_price == 0:
         return 0
     return int(
         round(qtty * (mm_price * dolar_blue * (1 + MM_MARGIN / 100) + MM_FIXED_VALUE))
     )
-
 
 def calculate_ago(qtty, ago_price, dolar_blue):
     if pd.isna(qtty) or pd.isna(ago_price) or qtty == 0 or ago_price == 0:
@@ -96,18 +111,19 @@ def calculate_ago(qtty, ago_price, dolar_blue):
 local_css("styles.css")
 
 
+# Data initialization
 DATA_FILE = "grid_data.csv"
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
 
 dolar_blue = get_dolar_blue_venta()
 
-# Initialize Session State
 if "data" not in st.session_state:
     st.session_state.data = load_persistent_data()
 
 
-# Sidebar - Configurable Constants
+# Sidebar
+# Configurable Constants
 st.sidebar.header("Variables")
 st.sidebar.write("---")
 
@@ -124,13 +140,9 @@ agora_dolar_ref = st.sidebar.number_input(
 )
 st.sidebar.write("---")
 
-
-# Reset data button in sidebar
+# Reset data button
 if st.sidebar.button("Reset to Default Data"):
-    if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
-    st.session_state.data = load_persistent_data()
-    st.rerun()
+    data_reset_button()
 
 
 # Main Page
