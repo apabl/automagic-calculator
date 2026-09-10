@@ -1,9 +1,12 @@
-import streamlit as st
+import os
 import pandas as pd
 import requests
+import streamlit as st
 
 # Always call set_page_config first
 st.set_page_config(page_title="Grid Calculator", layout="wide")
+
+DATA_FILE = "grid_data.csv"
 
 
 @st.cache_data(ttl=600)
@@ -16,6 +19,44 @@ def get_dolar_blue_venta():
     except Exception:
         pass
     return 1.0
+
+
+def load_persistent_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            return pd.read_csv(DATA_FILE)
+        except Exception:
+            pass
+
+    # Fallback Initial Data
+    return pd.DataFrame(
+        [
+            {
+                "Name": "Counterspell",
+                "Qtty": 1,
+                "CK": 8.99,
+                "CS": 9.99,
+                "MM": 10.99,
+                "Ago": 1.00,
+            },
+            {
+                "Name": "Dark Ritual",
+                "Qtty": 1,
+                "CK": 0.99,
+                "CS": 0.99,
+                "MM": 1.29,
+                "Ago": 1.00,
+            },
+            {
+                "Name": "Disenchant",
+                "Qtty": 4,
+                "CK": 7.99,
+                "CS": 8.49,
+                "MM": 8.49,
+                "Ago": 1.99,
+            },
+        ]
+    )
 
 
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
@@ -64,53 +105,31 @@ MM_FIXED_VALUE = st.sidebar.number_input(
 st.sidebar.write("---")
 
 dolar_blue = get_dolar_blue_venta()
-
-AGORA_DOLAR_REF = st.sidebar.number_input(
+agora_dolar_ref = st.sidebar.number_input(
     "Agora Dolar Reference ($ ARS)", min_value=0, value=int(dolar_blue), step=10
 )
 st.sidebar.write("---")
 
+# Reset data button in sidebar
+if st.sidebar.button("Reset to Default Data"):
+    if os.path.exists(DATA_FILE):
+        os.remove(DATA_FILE)
+    st.session_state.data = load_persistent_data()
+    st.rerun()
+
+# Initialize Session State
+if "data" not in st.session_state:
+    st.session_state.data = load_persistent_data()
 
 # Main Page
 st.title("Interactive Grid Calculator")
-
 st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 st.write("---")
-
-# Starting dataset
-INITIAL_DATA = pd.DataFrame(
-    [
-        {
-            "Name": "Counterspell",
-            "Qtty": 1,
-            "CK": 8.99,
-            "CS": 9.99,
-            "MM": 10.99,
-            "Ago": 1.00,
-        },
-        {
-            "Name": "Dark Ritual",
-            "Qtty": 1,
-            "CK": 0.99,
-            "CS": 0.99,
-            "MM": 1.29,
-            "Ago": 1.00,
-        },
-        {
-            "Name": "Disenchant",
-            "Qtty": 4,
-            "CK": 7.99,
-            "CS": 8.49,
-            "MM": 8.49,
-            "Ago": 1.99,
-        },
-    ]
-)
 
 # 1. Base Input Grid
 st.subheader("1. Enter Base Values")
 input_df = st.data_editor(
-    INITIAL_DATA,
+    st.session_state.data,
     num_rows="dynamic",
     width="stretch",
     key="data_editor",
@@ -131,6 +150,12 @@ input_df = st.data_editor(
         ),
     },
 )
+
+# Check if data changed and auto-save
+if not input_df.equals(st.session_state.data):
+    st.session_state.data = input_df
+    input_df.to_csv(DATA_FILE, index=False)
+    st.toast("Changes saved automatically!", icon="💾")
 
 # 2. Process Calculations
 calc_df = pd.DataFrame()
@@ -153,14 +178,13 @@ calc_df["MM F"] = input_df.apply(
     lambda row: calculate_mm(row.get("Qtty", 0), row.get("MM", 0), dolar_blue), axis=1
 )
 calc_df["Ago F"] = input_df.apply(
-    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), AGORA_DOLAR_REF),
+    lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), agora_dolar_ref),
     axis=1,
 )
 
-# 3. Output Grids Side-by-Side with Column Metrics
+# 3. Output Grids with Column Metrics
 st.subheader("2. Final Prices")
 
-# Prepare dataframes for side-by-side grids
 df_base = calc_df[["Name", "Qtty"]].copy()
 df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
 df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
