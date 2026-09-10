@@ -1,44 +1,45 @@
-/* Main background and font styling */
+/* Main */
 .stApp {
-    background-color: #f8ccff;
-    color: #3b0764;
+    background-color: #eaf7ed;
+    color: #064e3b;
 }
 
-/* Sidebar styling */
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #f3e8ff;
-    border-right: 1px solid #d8b4fe;
+    background-color: #d6f2df;
+    border-right: 1px solid #a3e6cd;
 }
 
 /* Headers */
-h1, h2, h3, h4, h5, h6 {
-    color: #581c87 !important;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #000000 !important;
 }
 
 /* Buttons */
-.stButton > button {
-    background-color: #7e22ce;
+.stButton>button {
+    background-color: #047857;
     color: white;
     border-radius: 8px;
     border: none;
     font-weight: 600;
 }
-.stButton > button:hover {
-    background-color: #6b21a8;
+
+.stButton>button:hover {
+    background-color: #065f46;
     color: white;
 }
 
-/* Metrics (Labels & Values) */
-[data-testid="stMetricLabel"],
-[data-testid="stMetricLabel"] p {
-    color: #000000 !important;
-}
-
+/* Metrics */
 [data-testid="stMetricValue"] {
-    color: #6b21a8 !important;
+    font-size: 1.3rem !important;
 }
 
-/* Input Labels (Text input, selectbox, slider, etc.) */
+/* Inputs */
 [data-testid="stWidgetLabel"] p {
     color: #000000 !important;
 }

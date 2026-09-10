@@ -7,17 +7,10 @@ import streamlit as st
 st.set_page_config(page_title="Grid Calculator", layout="wide")
 
 
-# Function to load external CSS
 def local_css(file_name):
     if os.path.exists(file_name):
         with open(file_name, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-
-# Load the external stylesheet
-local_css("styles.css")
-
-DATA_FILE = "grid_data.csv"
 
 
 @st.cache_data(ttl=600)
@@ -99,9 +92,20 @@ def calculate_ago(qtty, ago_price, dolar_blue):
     return int(round(qtty * ago_price * dolar_blue))
 
 
-# Fixed Constants
+# Load the external stylesheet
+local_css("styles.css")
+
+
+DATA_FILE = "grid_data.csv"
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
+
+dolar_blue = get_dolar_blue_venta()
+
+# Initialize Session State
+if "data" not in st.session_state:
+    st.session_state.data = load_persistent_data()
+
 
 # Sidebar - Configurable Constants
 st.sidebar.header("Variables")
@@ -115,11 +119,11 @@ MM_FIXED_VALUE = st.sidebar.number_input(
 )
 st.sidebar.write("---")
 
-dolar_blue = get_dolar_blue_venta()
 agora_dolar_ref = st.sidebar.number_input(
     "Agora Dolar Reference ($ ARS)", min_value=0, value=int(dolar_blue), step=10
 )
 st.sidebar.write("---")
+
 
 # Reset data button in sidebar
 if st.sidebar.button("Reset to Default Data"):
@@ -128,9 +132,6 @@ if st.sidebar.button("Reset to Default Data"):
     st.session_state.data = load_persistent_data()
     st.rerun()
 
-# Initialize Session State
-if "data" not in st.session_state:
-    st.session_state.data = load_persistent_data()
 
 # Main Page
 st.title("Interactive Grid Calculator")
@@ -294,4 +295,3 @@ with cols[4]:
         else 0
     )
     st.metric("Subtotal", f"$ {int(ago_sum):,}")
-    
