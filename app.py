@@ -2,14 +2,9 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
-from streamlit_cookies_controller import CookieController
 
 # Always call set_page_config first
 st.set_page_config(page_title="Grid Calculator", layout="wide")
-
-# Initialize the Cookie Controller
-cookie_controller = CookieController(key="cookie_controller")
-COOKIE_KEY = "grid_calculator_data"
 
 
 def local_css(file_name):
@@ -30,17 +25,7 @@ def get_dolar_blue_venta():
     return 1.0
 
 
-def load_persistent_data():
-    try:
-        cookies = cookie_controller.getAll()
-        if cookies and COOKIE_KEY in cookies:
-            data_json = cookies[COOKIE_KEY]
-            if data_json:
-                return pd.read_json(data_json, orient="split")
-    except Exception:
-        pass
-
-    # Fallback Initial Data
+def set_default_data():
     return pd.DataFrame(
         [
             {
@@ -69,25 +54,6 @@ def load_persistent_data():
             },
         ]
     )
-
-
-@st.dialog("Confirm Data Reset")
-def data_reset_button():
-    st.warning(
-        "Are you sure you want to reset all data back to defaults?  \nAny custom entries will be lost."
-    )
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Yes, Reset", type="primary", use_container_width=True):
-            try:
-                cookie_controller.remove(COOKIE_KEY)
-            except Exception:
-                pass
-            st.session_state.data = load_persistent_data()
-            st.rerun()
-    with col2:
-        if st.button("Cancel", use_container_width=True):
-            st.rerun()
 
 
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
@@ -122,7 +88,6 @@ def calculate_ago(qtty, ago_price, dolar_blue):
 # Load the external stylesheet
 local_css("styles.css")
 
-
 # Data initialization variables
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
@@ -130,7 +95,7 @@ CS_MARGIN = 13.0
 dolar_blue = get_dolar_blue_venta()
 
 if "data" not in st.session_state:
-    st.session_state.data = load_persistent_data()
+    st.session_state.data = set_default_data()
 
 
 # Sidebar
@@ -150,9 +115,29 @@ agora_dolar_ref = st.sidebar.number_input(
 )
 st.sidebar.write("---")
 
-# Reset data button
-if st.sidebar.button("Reset to Default Data"):
-    data_reset_button()
+# File Save / Load
+st.sidebar.header("Data Management")
+
+uploaded_file = st.sidebar.file_uploader(None, type=["json"])
+if uploaded_file is not None:
+    try:
+        loaded_df = pd.read_json(uploaded_file, orient="split")
+        if not loaded_df.equals(st.session_state.data):
+            st.session_state.data = loaded_df
+            st.sidebar.success("Data loaded successfully!")
+            st.rerun()
+    except Exception as e:
+        st.sidebar.error(f"Error loading file: {e}")
+
+json_data = st.session_state.data.to_json(orient="split")
+st.sidebar.download_button(
+    label="Save Data to File",
+    data=json_data,
+    file_name="grid_calculator_data.json",
+    mime="application/json",
+    use_container_width=True,
+)
+st.sidebar.write("---")
 
 
 # Main Page
@@ -185,15 +170,9 @@ input_df = st.data_editor(
     },
 )
 
-# Check if data changed and auto-save to browser cookies
+# Update session state when data editor changes
 if not input_df.equals(st.session_state.data):
     st.session_state.data = input_df
-    try:
-        data_json = input_df.to_json(orient="split")
-        cookie_controller.set(COOKIE_KEY, data_json)
-    except Exception as e:
-        st.error(f"Failed to save data to cookies: {e}")
-    st.toast("Changes saved automatically to browser cookie!", icon="💾")
 
 # 2. Process Calculations
 calc_df = pd.DataFrame()
