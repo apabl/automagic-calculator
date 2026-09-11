@@ -178,7 +178,6 @@ st.sidebar.write("---")
 
 # Main Page
 st.title("Automagic Calculator")
-st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 st.write("---")
 
 # 1. Base Input Grid
@@ -336,3 +335,5 @@ with cols[4]:
         else 0
     )
     st.metric("Subtotal", f"$ {int(ago_sum):,}")
+
+st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")

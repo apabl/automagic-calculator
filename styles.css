@@ -1,13 +1,13 @@
 /* Main */
 .stApp {
-    background-color: #eaf7ed;
-    color: #064e3b;
+    background-color: mintcream;
+    color: darkgreen;
 }
 
 /* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #d6f2df;
-    border-right: 1px solid #a3e6cd;
+    background-color: honeydew;
+    border-right: 1px solid seagreen;
 }
 
 /* Headers */
@@ -17,28 +17,33 @@ h3,
 h4,
 h5,
 h6 {
-    color: black !important;
+    color: darkslategray !important;
+}
+
+/* Horizontal Rule */
+hr {
+  background-color: darkgreen !important;
 }
 
 /* Metrics */
 [data-testid="stMetricValue"] {
     font-size: 1.3rem !important;
-    color: black;
+    color: darkslategray;
 }
 [data-testid="stMetricLabel"] {
-    color: black !important;
+    color: darkslategray !important;
 }
 
 /* Inputs */
 [data-testid="stWidgetLabel"] p {
-    color: black !important;
+    color: darkslategray !important;
 }
 
 /* Buttons */
 .stButton > button,
 [data-testid="stDownloadButton"] > button,
 [data-testid="stFileUploader"] button {
-    background-color: #064e3b !important;
+    background-color: seagreen !important;
     color: white !important;
     border: none !important;
 }
@@ -46,6 +51,6 @@ h6 {
 .stButton > button:hover,
 [data-testid="stDownloadButton"] > button:hover,
 [data-testid="stFileUploader"] button:hover {
-    background-color: #047857 !important;
+    background-color: darkslategray !important;
     color: white !important;
 }
