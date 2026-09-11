@@ -1,10 +1,12 @@
 import os
+import tkinter as tk
+from tkinter import filedialog
 import pandas as pd
 import requests
 import streamlit as st
 
 # Always call set_page_config first
-st.set_page_config(page_title="Grid Calculator", layout="wide")
+st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
 
 def local_css(file_name):
@@ -85,6 +87,59 @@ def calculate_ago(qtty, ago_price, dolar_blue):
     return int(round(qtty * ago_price * dolar_blue))
 
 
+def file_loader():
+    if "data_file_loaded" not in st.session_state:
+        st.session_state.data_file_loaded = False
+
+    if not st.session_state.data_file_loaded:
+        uploaded_file = st.sidebar.file_uploader(None, type=["json"])
+
+        if uploaded_file is not None:
+            try:
+                loaded_df = pd.read_json(uploaded_file, orient="split")
+
+                if not loaded_df.equals(st.session_state.data):
+                    st.session_state.data = loaded_df
+
+                st.session_state.data_file_loaded = True
+                st.rerun()
+            except Exception as e:
+                st.sidebar.error(f"Error loading file: {e}")
+    else:
+        st.sidebar.success("Data file loaded")
+
+        if st.sidebar.button("Load Another File", use_container_width=True):
+            st.session_state.data_file_loaded = False
+            st.rerun()
+
+
+def file_saver():
+    if st.sidebar.button("Save Data to File", use_container_width=True):
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+
+            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                initialdir=downloads_path,
+                initialfile="automagic_calculator.json",
+                title="Save Calculator Data",
+            )
+            root.destroy()
+
+            if file_path:
+                json_data = st.session_state.data.to_json(orient="split")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(json_data)
+                st.sidebar.success(f"Saved to: {os.path.basename(file_path)}")
+        except Exception as e:
+            st.sidebar.error(f"Could not open save dialog: {e}")
+
+
 # Load the external stylesheet
 local_css("styles.css")
 
@@ -115,33 +170,14 @@ agora_dolar_ref = st.sidebar.number_input(
 )
 st.sidebar.write("---")
 
-# File Save / Load
 st.sidebar.header("Data Management")
-
-uploaded_file = st.sidebar.file_uploader(None, type=["json"])
-if uploaded_file is not None:
-    try:
-        loaded_df = pd.read_json(uploaded_file, orient="split")
-        if not loaded_df.equals(st.session_state.data):
-            st.session_state.data = loaded_df
-            st.sidebar.success("Data loaded successfully!")
-            st.rerun()
-    except Exception as e:
-        st.sidebar.error(f"Error loading file: {e}")
-
-json_data = st.session_state.data.to_json(orient="split")
-st.sidebar.download_button(
-    label="Save Data to File",
-    data=json_data,
-    file_name="grid_calculator_data.json",
-    mime="application/json",
-    use_container_width=True,
-)
+file_loader()
+file_saver()
 st.sidebar.write("---")
 
 
 # Main Page
-st.title("Interactive Grid Calculator")
+st.title("Automagic Calculator")
 st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 st.write("---")
 
