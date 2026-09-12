@@ -87,7 +87,7 @@ def calculate_ago(qtty, ago_price, dolar_blue):
     return int(round(qtty * ago_price * dolar_blue))
 
 
-def file_loader():
+def sidebar_file_loader():
     if "data_file_loaded" not in st.session_state:
         st.session_state.data_file_loaded = False
 
@@ -97,11 +97,11 @@ def file_loader():
         if uploaded_file is not None:
             try:
                 loaded_df = pd.read_json(uploaded_file, orient="split")
-
-                if not loaded_df.equals(st.session_state.data):
-                    st.session_state.data = loaded_df
-
+                st.session_state.data = loaded_df
                 st.session_state.data_file_loaded = True
+                # Clear editor key so it re-initializes with the new file data
+                if "base_editor" in st.session_state:
+                    del st.session_state["base_editor"]
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Error loading file: {e}")
@@ -110,10 +110,12 @@ def file_loader():
 
         if st.sidebar.button("Load Another File", use_container_width=True):
             st.session_state.data_file_loaded = False
+            if "base_editor" in st.session_state:
+                del st.session_state["base_editor"]
             st.rerun()
 
 
-def file_saver():
+def sidebar_file_saver(current_df):
     if st.sidebar.button("Save Data to File", use_container_width=True):
         try:
             root = tk.Tk()
@@ -132,7 +134,7 @@ def file_saver():
             root.destroy()
 
             if file_path:
-                json_data = st.session_state.data.to_json(orient="split")
+                json_data = current_df.to_json(orient="split")
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(json_data)
                 st.sidebar.success(f"Saved to: {os.path.basename(file_path)}")
@@ -171,22 +173,19 @@ agora_dolar_ref = st.sidebar.number_input(
 st.sidebar.write("---")
 
 st.sidebar.header("Data Management")
-file_loader()
-file_saver()
-st.sidebar.write("---")
-
+sidebar_file_loader()
 
 # Main Page
 st.title("Automagic Calculator")
 st.write("---")
 
-# 1. Base Input Grid
+# 1. Base Input Grid (Using a stable key to prevent the first-edit-revert bug)
 st.subheader("1. Enter Base Values")
 input_df = st.data_editor(
     st.session_state.data,
     num_rows="dynamic",
     width="stretch",
-    key="data_editor",
+    key="base_editor",
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="large"),
         "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0),
@@ -205,11 +204,11 @@ input_df = st.data_editor(
     },
 )
 
-# Update session state when data editor changes
-if not input_df.equals(st.session_state.data):
-    st.session_state.data = input_df
+# Pass current live editor state to file saver
+sidebar_file_saver(input_df)
+st.sidebar.write("---")
 
-# 2. Process Calculations
+# 2. Process Calculations using input_df directly
 calc_df = pd.DataFrame()
 calc_df["Name"] = input_df["Name"]
 calc_df["Qtty"] = input_df["Qtty"].fillna(0).astype(int)
@@ -227,7 +226,8 @@ calc_df["CS F"] = input_df.apply(
     axis=1,
 )
 calc_df["MM F"] = input_df.apply(
-    lambda row: calculate_mm(row.get("Qtty", 0), row.get("MM", 0), dolar_blue), axis=1
+    lambda row: calculate_mm(row.get("Qtty", 0), row.get("MM", 0), dolar_blue),
+    axis=1,
 )
 calc_df["Ago F"] = input_df.apply(
     lambda row: calculate_ago(row.get("Qtty", 0), row.get("Ago", 0), agora_dolar_ref),
