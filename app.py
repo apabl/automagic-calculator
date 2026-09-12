@@ -179,12 +179,13 @@ sidebar_file_loader()
 st.title("Automagic Calculator")
 st.write("---")
 
-# 1. Base Input Grid (Using a stable key to prevent the first-edit-revert bug)
+# 1. Base Input Grid
 st.subheader("1. Enter Base Values")
 input_df = st.data_editor(
     st.session_state.data,
     num_rows="dynamic",
     width="stretch",
+    height="content",
     key="base_editor",
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="large"),
@@ -204,7 +205,7 @@ input_df = st.data_editor(
     },
 )
 
-# Pass current live editor state to file saver
+# File saver
 sidebar_file_saver(input_df)
 st.sidebar.write("---")
 
@@ -249,6 +250,7 @@ with cols[0]:
     edited_base = st.data_editor(
         df_base,
         width="stretch",
+        height="content",
         hide_index=True,
         key="grid_base",
         disabled=["Name", "Qtty"],
@@ -262,6 +264,7 @@ with cols[1]:
     edited_ck = st.data_editor(
         df_ck,
         width="stretch",
+        height="content",
         hide_index=True,
         key="grid_ck",
         disabled=["CK F"],
@@ -281,6 +284,7 @@ with cols[2]:
     edited_cs = st.data_editor(
         df_cs,
         width="stretch",
+        height="content",
         hide_index=True,
         key="grid_cs",
         disabled=["CS F"],
@@ -300,6 +304,7 @@ with cols[3]:
     edited_mm = st.data_editor(
         df_mm,
         width="stretch",
+        height="content",
         hide_index=True,
         key="grid_mm",
         disabled=["MM F"],
@@ -319,6 +324,7 @@ with cols[4]:
     edited_ago = st.data_editor(
         df_ago,
         width="stretch",
+        height="content",
         hide_index=True,
         key="grid_ago",
         disabled=["Ago F"],
