@@ -22,7 +22,7 @@ h6 {
 
 /* Horizontal Rule */
 hr {
-  background-color: darkgreen !important;
+    background-color: darkgreen !important;
 }
 
 /* Metrics */
@@ -30,6 +30,7 @@ hr {
     font-size: 1.3rem !important;
     color: darkslategray;
 }
+
 [data-testid="stMetricLabel"] {
     color: darkslategray !important;
 }
@@ -40,17 +41,28 @@ hr {
 }
 
 /* Buttons */
-.stButton > button,
-[data-testid="stDownloadButton"] > button,
+.stButton>button,
+[data-testid="stDownloadButton"]>button,
 [data-testid="stFileUploader"] button {
     background-color: seagreen !important;
     color: white !important;
     border: none !important;
 }
 
-.stButton > button:hover,
-[data-testid="stDownloadButton"] > button:hover,
+.stButton>button:hover,
+[data-testid="stDownloadButton"]>button:hover,
 [data-testid="stFileUploader"] button:hover {
     background-color: darkslategray !important;
     color: white !important;
+}
+
+/* Data editor tooltips */
+[data-testid="stTooltipContent"],
+.st-emotion-cache-12w0qpk,
+div[data-baseweb="popover"],
+div[data-baseweb="tooltip"] {
+    background-color: white !important;
+    color: darkslategray !important;
+    border: 1px solid honeydew !important;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
