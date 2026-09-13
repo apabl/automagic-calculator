@@ -35,13 +35,17 @@ def get_dolar_blue_venta():
 
 @st.cache_data(ttl=21600)  # 6 hours
 def get_card_kingdom_pricelist():
-    """Fetches and caches the Card Kingdom pricelist for 6 hours."""
+    """Fetches and caches the Card Kingdom pricelist, finding the cheapest
+    non-foil (or fallback foil) price across all versions/printings.
+    """
     try:
         url = "https://api.cardkingdom.com/api/v2/pricelist"
         response = requests.get(url, timeout=15)
         if response.status_code == 200:
             data = response.json().get("data", [])
-            ck_dict = {}
+            non_foil_prices = {}
+            foil_prices = {}
+
             for item in data:
                 name = item.get("name", "").strip().lower()
                 is_foil = item.get("is_foil", False)
@@ -50,11 +54,23 @@ def get_card_kingdom_pricelist():
                 except (ValueError, TypeError):
                     price = 0.0
 
-                # Prefer non-foil prices, fallback to foil if necessary
-                if name and not is_foil:
-                    ck_dict[name] = price
-                elif name and name not in ck_dict:
-                    ck_dict[name] = price
+                if name and price > 0:
+                    if not is_foil:
+                        if name not in non_foil_prices or price < non_foil_prices[name]:
+                            non_foil_prices[name] = price
+                    else:
+                        if name not in foil_prices or price < foil_prices[name]:
+                            foil_prices[name] = price
+
+            # Combine: prefer the lowest non-foil price, fallback to lowest foil if no non-foil exists
+            ck_dict = {}
+            all_names = set(non_foil_prices.keys()).union(set(foil_prices.keys()))
+            for name in all_names:
+                if name in non_foil_prices:
+                    ck_dict[name] = non_foil_prices[name]
+                else:
+                    ck_dict[name] = foil_prices[name]
+
             return ck_dict
     except Exception:
         pass
@@ -228,22 +244,24 @@ input_df = st.data_editor(
     key=f"base_editor_{st.session_state.base_editor_key}",
     disabled=["API"],
     column_config={
-        "Name": st.column_config.TextColumn("Card Name", width="large"),
-        "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0),
-        "API": st.column_config.NumberColumn(
-            "🔒 Cheapest CK NM 🔒", format="%.2f", step=0.01, width="medium"
+        "Name": st.column_config.TextColumn("Card Name", width="medium"),
+        "Qtty": st.column_config.NumberColumn(
+            "Qtty", format="%d", step=1, min_value=0, width="small"
         ),
-        "CK": st.column_config.NumberColumn(
-            "Card Kingdom", format="%.2f", step=0.01, width="medium"
+        "API": st.column_config.NumberColumn(
+            "🔒    Cheapest CK NM", format="%.2f", step=0.01, width="small"
         ),
         "CS": st.column_config.NumberColumn(
-            "CoolStuffInc", format="%.2f", step=0.01, width="medium"
+            "CoolStuffInc", format="%.2f", step=0.01, width="small"
+        ),
+        "CK": st.column_config.NumberColumn(
+            "Card Kingdom", format="%.2f", step=0.01, width="small"
         ),
         "MM": st.column_config.NumberColumn(
-            "Multi Margin", format="%.2f", step=0.01, width="medium"
+            "Multi Margin", format="%.2f", step=0.01, width="small"
         ),
         "Ago": st.column_config.NumberColumn(
-            "Agora", format="%.2f", step=0.01, width="medium"
+            "Agora", format="%.2f", step=0.01, width="small"
         ),
     },
 )
