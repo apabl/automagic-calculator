@@ -35,26 +35,53 @@ hr {
     color: #2f4f4f;
 }
 
-/* Inputs */
+/* Inputs & Labels */
 [data-testid="stWidgetLabel"] p {
     color: #2f4f4f;
 }
 
 /* Buttons */
 .stButton>button,
-[data-testid="stDownloadButton"]>button,
-[data-testid="stFileUploader"] button {
-    background-color: #2e8b57;
-    color: #ffffff;
-    border: none;
+[data-testid="stDownloadButton"]>button {
+    background-color: #2e8b57 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 4px !important;
 }
 
 .stButton>button:hover,
-[data-testid="stDownloadButton"]>button:hover,
-[data-testid="stFileUploader"] button:hover {
-    background-color: #2f4f4f;
-    color: #ffffff;
-    border: 1px solid #f0fff0;
+[data-testid="stDownloadButton"]>button:hover {
+    background-color: #2f4f4f !important;
+    color: #ffffff !important;
+    border: 1px solid #f0fff0 !important;
+}
+
+/* Upload Button */
+[data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+    width: 100% !important;
+    min-height: 38px !important;
+    background-color: #2e8b57 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background-color: #2f4f4f !important;
+    color: #ffffff !important;
+    border: 1px solid #f0fff0 !important;
+}
+
+/* Hide the "Drag and drop..." / file size text */
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
 }
 
 /* Data editor tooltips */
