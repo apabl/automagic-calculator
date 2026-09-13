@@ -15,6 +15,14 @@ def local_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
+def load_faq(file_name="faq.md"):
+    """Loads the F.A.Q. content from a markdown file."""
+    if os.path.exists(file_name):
+        with open(file_name, "r", encoding="utf-8") as f:
+            return f.read()
+    return "F.A.Q. file not found. Please create an `faq.md` file in the application directory."
+
+
 @st.cache_data(ttl=600)
 def get_dolar_blue_venta():
     try:
@@ -99,7 +107,6 @@ def sidebar_file_loader():
                 loaded_df = pd.read_json(uploaded_file, orient="split")
                 st.session_state.data = loaded_df
                 st.session_state.data_file_loaded = True
-                # Clear editor key so it re-initializes with the new file data
                 if "base_editor" in st.session_state:
                     del st.session_state["base_editor"]
                 st.rerun()
@@ -343,3 +350,9 @@ with cols[4]:
     st.metric("Subtotal", f"$ {int(ago_sum):,}")
 
 st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
+
+# --- F.A.Q. SECTION ---
+st.write("---")
+with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):
+    faq_text = load_faq("faq.md")
+    st.markdown(faq_text)
