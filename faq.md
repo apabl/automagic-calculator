@@ -10,8 +10,11 @@ A: Checking the boxes next to items allows you to dynamically sum up specific su
 ##### Q: What do the different columns represent?
 A: **Card Kingdom** and **CoolStuffInc** are self-explanatory, and their final prices follow standard calculation rules. **Multi Margin** allows you to simulate a market by adding a percentage to the dollar price along with a fixed amount per card (in pesos). **Agora** uses the base price with a customizable dollar reference, as each vendor chooses their own exchange rate.
 
-##### Q: Is my data saved in the cloud?
+##### Q: Is price data saved in the cloud?
 A: No, data is not stored in the cloud. You can keep your progress and custom values locally by using the **Save to .csv** and file uploader buttons in the sidebar to export and import your **.csv** files.
+
+##### Q: Does the app store any of my data?
+A: No, the app does not store any data of any kind. All computations and calculations are done completely on the fly in your active session. Nothing you type or upload is saved on a server.
 
 ##### Q: Why does the save button download directly without asking where to save?
 A: By default, most web browsers save files automatically to your computer's "Downloads" folder for speed and security.  
