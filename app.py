@@ -33,6 +33,34 @@ def get_dolar_blue_venta():
     return 1.0
 
 
+@st.cache_data(ttl=21600)  # 6 hours
+def get_card_kingdom_pricelist():
+    """Fetches and caches the Card Kingdom pricelist for 6 hours."""
+    try:
+        url = "https://api.cardkingdom.com/api/v2/pricelist"
+        response = requests.get(url, timeout=15)
+        if response.status_code == 200:
+            data = response.json().get("data", [])
+            ck_dict = {}
+            for item in data:
+                name = item.get("name", "").strip().lower()
+                is_foil = item.get("is_foil", False)
+                try:
+                    price = float(item.get("price_retail", 0.0))
+                except (ValueError, TypeError):
+                    price = 0.0
+
+                # Prefer non-foil prices, fallback to foil if necessary
+                if name and not is_foil:
+                    ck_dict[name] = price
+                elif name and name not in ck_dict:
+                    ck_dict[name] = price
+            return ck_dict
+    except Exception:
+        pass
+    return {}
+
+
 def set_default_data():
     return pd.DataFrame(
         [
@@ -103,7 +131,6 @@ def sidebar_file_loader():
             try:
                 loaded_df = pd.read_csv(uploaded_file)
 
-                # Validate that required columns exist in the uploaded CSV
                 required_cols = ["Name", "Qtty", "CK", "CS", "MM", "Ago"]
                 missing_cols = [
                     col for col in required_cols if col not in loaded_df.columns
@@ -158,6 +185,9 @@ dolar_blue = get_dolar_blue_venta()
 if "data" not in st.session_state:
     st.session_state.data = set_default_data()
 
+if "base_editor_key" not in st.session_state:
+    st.session_state.base_editor_key = 0
+
 
 # Sidebar
 st.sidebar.header("Variables")
@@ -179,18 +209,22 @@ st.sidebar.write("---")
 st.sidebar.header("Data Management")
 sidebar_file_loader()
 
+
 # Main Page
 st.title("Automagic Calculator")
 st.write("---")
 
 # 1. Base Input Grid
 st.subheader("1. Enter Base Values")
+
+update_button_slot = st.empty()
+
 input_df = st.data_editor(
     st.session_state.data,
     num_rows="dynamic",
     width="stretch",
     height="content",
-    key="base_editor",
+    key=f"base_editor_{st.session_state.base_editor_key}",
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="large"),
         "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0),
@@ -209,9 +243,43 @@ input_df = st.data_editor(
     },
 )
 
-# File saver
+# Rendered into the placeholder above the editor, but executed here so input_df
+# already contains every manual edit made by the user.
+if update_button_slot.button("Update CK Prices from API", use_container_width=False):
+    with st.spinner("Fetching Card Kingdom pricelist..."):
+        current_df = input_df.copy()
+        ck_prices = get_card_kingdom_pricelist()
+
+        if ck_prices:
+            updated_count = 0
+            not_found_count = 0
+
+            for idx, row in current_df.iterrows():
+                card_name = str(row.get("Name", "")).strip().lower()
+
+                if card_name in ck_prices:
+                    current_df.at[idx, "CK"] = ck_prices[card_name]
+                    updated_count += 1
+                else:
+                    not_found_count += 1
+
+            # Replace the backing dataset only because the API has actually
+            # changed the underlying data, then recreate the editor once.
+            st.session_state.data = current_df
+            st.session_state.base_editor_key += 1
+
+            st.success(
+                f"Updated {updated_count} card(s). "
+                f"{not_found_count} card(s) not found (left unchanged)."
+            )
+            st.rerun()
+        else:
+            st.error("Failed to fetch Card Kingdom price list.")
+
+# File saver uses the live edited DataFrame directly
 sidebar_file_saver(input_df)
 st.sidebar.write("---")
+
 
 # 2. Process Calculations using input_df directly
 calc_df = pd.DataFrame()
