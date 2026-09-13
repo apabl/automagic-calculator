@@ -67,6 +67,7 @@ def set_default_data():
             {
                 "Name": "Counterspell",
                 "Qtty": 1,
+                "API": 0.00,
                 "CK": 8.99,
                 "CS": 9.99,
                 "MM": 10.99,
@@ -75,6 +76,7 @@ def set_default_data():
             {
                 "Name": "Dark Ritual",
                 "Qtty": 1,
+                "API": 0.00,
                 "CK": 0.99,
                 "CS": 0.99,
                 "MM": 1.29,
@@ -83,6 +85,7 @@ def set_default_data():
             {
                 "Name": "Disenchant",
                 "Qtty": 4,
+                "API": 0.00,
                 "CK": 7.99,
                 "CS": 8.49,
                 "MM": 8.49,
@@ -217,17 +220,19 @@ st.write("---")
 # 1. Base Input Grid
 st.subheader("1. Enter Base Values")
 
-update_button_slot = st.empty()
-
 input_df = st.data_editor(
     st.session_state.data,
     num_rows="dynamic",
     width="stretch",
     height="content",
     key=f"base_editor_{st.session_state.base_editor_key}",
+    disabled=["API"],
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="large"),
         "Qtty": st.column_config.NumberColumn("Qtty", format="%d", step=1, min_value=0),
+        "API": st.column_config.NumberColumn(
+            "🔒 Cheapest CK NM 🔒", format="%.2f", step=0.01, width="medium"
+        ),
         "CK": st.column_config.NumberColumn(
             "Card Kingdom", format="%.2f", step=0.01, width="medium"
         ),
@@ -243,9 +248,8 @@ input_df = st.data_editor(
     },
 )
 
-# Rendered into the placeholder above the editor, but executed here so input_df
-# already contains every manual edit made by the user.
-if update_button_slot.button("Update CK Prices from API", use_container_width=False):
+# API update button placed cleanly below the data editor
+if st.button("Update CK Prices from API", use_container_width=False):
     with st.spinner("Fetching Card Kingdom pricelist..."):
         current_df = input_df.copy()
         ck_prices = get_card_kingdom_pricelist()
@@ -258,7 +262,7 @@ if update_button_slot.button("Update CK Prices from API", use_container_width=Fa
                 card_name = str(row.get("Name", "")).strip().lower()
 
                 if card_name in ck_prices:
-                    current_df.at[idx, "CK"] = ck_prices[card_name]
+                    current_df.at[idx, "API"] = ck_prices[card_name]
                     updated_count += 1
                 else:
                     not_found_count += 1
@@ -269,7 +273,7 @@ if update_button_slot.button("Update CK Prices from API", use_container_width=Fa
             st.session_state.base_editor_key += 1
 
             st.success(
-                f"Updated {updated_count} card(s). "
+                f"Updated API prices for {updated_count} card(s). "
                 f"{not_found_count} card(s) not found (left unchanged)."
             )
             st.rerun()
