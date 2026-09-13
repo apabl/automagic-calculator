@@ -1,13 +1,13 @@
 /* Main */
 .stApp {
-    background-color: mintcream;
-    color: darkgreen;
+    background-color: #f5fffa;
+    color: #006400;
 }
 
 /* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: honeydew;
-    border-right: 1px solid seagreen;
+    background-color: #f0fff0;
+    border-right: 1px solid #2e8b57;
 }
 
 /* Headers */
@@ -17,52 +17,52 @@ h3,
 h4,
 h5,
 h6 {
-    color: darkslategray !important;
+    color: #2f4f4f !important;
 }
 
 /* Horizontal Rule */
 hr {
-    background-color: darkgreen !important;
+    background-color: #006400 !important;
 }
 
 /* Metrics */
 [data-testid="stMetricValue"] {
-    font-size: 1.3rem !important;
-    color: darkslategray;
+    font-size: 1.3rem;
+    color: #2f4f4f;
 }
 
 [data-testid="stMetricLabel"] {
-    color: darkslategray !important;
+    color: #2f4f4f;
 }
 
 /* Inputs */
 [data-testid="stWidgetLabel"] p {
-    color: darkslategray !important;
+    color: #2f4f4f;
 }
 
 /* Buttons */
 .stButton>button,
 [data-testid="stDownloadButton"]>button,
 [data-testid="stFileUploader"] button {
-    background-color: seagreen !important;
-    color: white !important;
-    border: none !important;
+    background-color: #2e8b57;
+    color: #ffffff;
+    border: none;
 }
 
 .stButton>button:hover,
 [data-testid="stDownloadButton"]>button:hover,
 [data-testid="stFileUploader"] button:hover {
-    background-color: darkslategray !important;
-    color: white !important;
+    background-color: #2f4f4f;
+    color: #ffffff;
+    border: 1px solid #f0fff0;
 }
 
 /* Data editor tooltips */
 [data-testid="stTooltipContent"],
-.st-emotion-cache-12w0qpk,
 div[data-baseweb="popover"],
 div[data-baseweb="tooltip"] {
-    background-color: white !important;
-    color: darkslategray !important;
-    border: 1px solid honeydew !important;
-    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
+    background-color: #ffffff;
+    color: #2f4f4f;
+    border: 1px solid #f0fff0;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
 }
