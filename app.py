@@ -98,18 +98,30 @@ def sidebar_file_loader():
         st.session_state.data_file_loaded = False
 
     if not st.session_state.data_file_loaded:
-        uploaded_file = st.sidebar.file_uploader(None, type=["json"])
-
+        uploaded_file = st.sidebar.file_uploader(None, type=["csv"])
         if uploaded_file is not None:
             try:
-                loaded_df = pd.read_json(uploaded_file, orient="split")
+                loaded_df = pd.read_csv(uploaded_file)
+
+                # Validate that required columns exist in the uploaded CSV
+                required_cols = ["Name", "Qtty", "CK", "CS", "MM", "Ago"]
+                missing_cols = [
+                    col for col in required_cols if col not in loaded_df.columns
+                ]
+
+                if missing_cols:
+                    st.sidebar.error(
+                        f"Incompatible file! Missing columns: {', '.join(missing_cols)}"
+                    )
+                    return
+
                 st.session_state.data = loaded_df
                 st.session_state.data_file_loaded = True
                 if "base_editor" in st.session_state:
                     del st.session_state["base_editor"]
                 st.rerun()
             except Exception as e:
-                st.sidebar.error(f"Error loading file: {e}")
+                st.sidebar.error(f"Error reading CSV file: {e}")
     else:
         st.sidebar.success("Data file loaded")
 
@@ -122,12 +134,12 @@ def sidebar_file_loader():
 
 def sidebar_file_saver(current_df):
     try:
-        json_data = current_df.to_json(orient="split")
+        csv_data = current_df.to_csv(index=False).encode("utf-8")
         st.sidebar.download_button(
-            label="Save Data to File",
-            data=json_data,
-            file_name="automagic_calculator.json",
-            mime="application/json",
+            label="Save to .csv",
+            data=csv_data,
+            file_name="automagic_calculator.csv",
+            mime="text/csv",
             use_container_width=True,
         )
     except Exception as e:

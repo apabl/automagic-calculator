@@ -9,3 +9,9 @@ A: **Card Kingdom** and **CoolStuffInc** are self-explanatory, and their final p
 
 ##### Q: Is my data saved in the cloud?
 A: No, data is not stored in the cloud. You can keep your progress and custom values locally by using the **Save Data to File** and file uploader buttons in the sidebar to export and import your `.json` files.
+
+##### Why does the save button download directly without asking where to save?
+By default, most web browsers save files automatically to your computer's "Downloads" folder for speed and security.  
+If you prefer a native window to prompt you for a custom location and file name every time, you can change this in your browser settings:  
+* **Chrome / Edge / Brave:** Go to **Settings > Downloads** and turn on **"Ask where to save each file before downloading"**.
+* **Firefox:** Go to **Settings > General > Files and Applications** and select **"Always ask you where to save files"**.
