@@ -15,42 +15,48 @@ st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
 
 def sync_api_prices(df):
-    """Helper function to automatically align API prices and SKUs with current card names."""
+    """Aligns API prices and editions with current card names and enforces proper column order."""
     updated = False
     new_df = df.copy()
     if "Name" not in new_df.columns:
         return new_df, False
 
-    # Ensure API and SKU columns exist
-    if "API" not in new_df.columns:
-        new_df["API"] = 0.0
-        updated = True
-    if "SKU" not in new_df.columns:
-        api_idx = new_df.columns.get_loc("API")
-        new_df.insert(api_idx, "SKU", "")
+    # Define the canonical column order: Name, Edition, API, Qtty, CS, CK, MM, Ago
+    canonical_cols = ["Name", "Edition", "API", "Qtty", "CS", "CK", "MM", "Ago"]
+
+    # Ensure all canonical columns exist
+    for col in canonical_cols:
+        if col not in new_df.columns:
+            if col == "Edition":
+                new_df[col] = ""
+            elif col in ["API", "CS", "CK", "MM", "Ago"]:
+                new_df[col] = 0.0
+            elif col == "Qtty":
+                new_df[col] = 0
+            updated = True
+
+    # Enforce strict column sequencing
+    existing_canonical = [col for col in canonical_cols if col in new_df.columns]
+    other_cols = [col for col in new_df.columns if col not in canonical_cols]
+    ordered_cols = existing_canonical + other_cols
+
+    if list(new_df.columns) != ordered_cols:
+        new_df = new_df[ordered_cols]
         updated = True
 
     for idx, row in new_df.iterrows():
         card_name = str(row.get("Name", "")).strip()
-        card_key = card_name.lower()
-        card_data = st.session_state.ck_prices.get(card_key)
+        card_data = st.session_state.ck_prices.get(card_name.lower(), {})
 
-        if isinstance(card_data, dict):
-            expected_api = card_data.get("price", 0.0)
-            expected_sku = card_data.get("sku", "")
-        elif isinstance(card_data, (int, float)):
-            expected_api = float(card_data)
-            expected_sku = ""
-        else:
-            expected_api = 0.0
-            expected_sku = ""
+        expected_api = card_data.get("price", 0.0)
+        expected_edition = card_data.get("edition", "")
 
         if (
             row.get("API", 0.0) != expected_api
-            or str(row.get("SKU", "")) != expected_sku
+            or str(row.get("Edition", "")) != expected_edition
         ):
             new_df.at[idx, "API"] = expected_api
-            new_df.at[idx, "SKU"] = expected_sku
+            new_df.at[idx, "Edition"] = expected_edition
             updated = True
 
     return new_df, updated
@@ -143,15 +149,15 @@ input_df = st.data_editor(
     width="stretch",
     height="content",
     key=f"base_editor_{st.session_state.base_editor_key}",
-    disabled=["SKU", "API"],
+    disabled=["Edition", "API"],
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="medium"),
+        "Edition": st.column_config.TextColumn("🔒    Cheapest Edition", width="medium"),
+        "API": st.column_config.NumberColumn(
+            "🔒    Cheapest Price", format="%.2f", step=0.01, width="small"
+        ),
         "Qtty": st.column_config.NumberColumn(
             "Qtty", format="%d", step=1, min_value=0, width="small"
-        ),
-        "SKU": st.column_config.TextColumn("🔒    SKU", width="small"),
-        "API": st.column_config.NumberColumn(
-            "🔒    Cheapest CK NM", format="%.2f", step=0.01, width="small"
         ),
         "CS": st.column_config.NumberColumn(
             "CoolStuffInc", format="%.2f", step=0.01, width="small"
