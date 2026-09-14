@@ -284,17 +284,15 @@ def main_content():
                 "🔒    Cheapest Edition", width="medium"
             ),
             "CK": st.column_config.NumberColumn(
-                "Card Kingdom", format="%.2f", step=0.01, width="small"
+                "Card Kingdom", format="%.2f", step=0.01
             ),
             "CS": st.column_config.NumberColumn(
-                "CoolStuffInc", format="%.2f", step=0.01, width="small"
+                "CoolStuffInc", format="%.2f", step=0.01
             ),
             "MM": st.column_config.NumberColumn(
-                "Multi Margin", format="%.2f", step=0.01, width="small"
+                "Multi Margin", format="%.2f", step=0.01
             ),
-            "Ago": st.column_config.NumberColumn(
-                "Agora", format="%.2f", step=0.01, width="small"
-            ),
+            "Ago": st.column_config.NumberColumn("Agora", format="%.2f", step=0.01),
         },
     )
 
@@ -363,7 +361,7 @@ def main_content():
     df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
     df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
 
-    cols = st.columns([1.2, 1, 1, 1, 1])
+    cols = st.columns([2, 1, 1, 1, 1])
 
     with cols[0]:
         st.data_editor(
@@ -392,9 +390,7 @@ def main_content():
             disabled=["CK F"],
             column_config={
                 "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "CK F": st.column_config.NumberColumn(
-                    "Card Kingdom", format="$ %d", width="medium"
-                ),
+                "CK F": st.column_config.NumberColumn("Card Kingdom", format="$ %d"),
             },
         )
         st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ck, 'CK F')):,}")
@@ -409,9 +405,7 @@ def main_content():
             disabled=["CS F"],
             column_config={
                 "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "CS F": st.column_config.NumberColumn(
-                    "CoolStuffInc", format="$ %d", width="medium"
-                ),
+                "CS F": st.column_config.NumberColumn("CoolStuffInc", format="$ %d"),
             },
         )
         st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_cs, 'CS F')):,}")
@@ -426,9 +420,7 @@ def main_content():
             disabled=["MM F"],
             column_config={
                 "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "MM F": st.column_config.NumberColumn(
-                    "Multi Margin", format="$ %d", width="medium"
-                ),
+                "MM F": st.column_config.NumberColumn("Multi Margin", format="$ %d"),
             },
         )
         st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_mm, 'MM F')):,}")
@@ -443,14 +435,12 @@ def main_content():
             disabled=["Ago F"],
             column_config={
                 "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "Ago F": st.column_config.NumberColumn(
-                    "Agora", format="$ %d", width="medium"
-                ),
+                "Ago F": st.column_config.NumberColumn("Agora", format="$ %d"),
             },
         )
         st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ago, 'Ago F')):,}")
 
-    st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
+    st.write(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
     # F.A.Q. SECTION
     st.write("---")
