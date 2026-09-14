@@ -445,8 +445,7 @@ def main_content():
     # F.A.Q. SECTION
     st.write("---")
     with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):
-        faq_text = load_faq("faq.md")
-        st.markdown(faq_text)
+        st.markdown(load_faq("faq.md"))
 
 
 main_content()
