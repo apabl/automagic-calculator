@@ -321,13 +321,21 @@ def main_content():
         },
     )
 
-    # Add / remove cards — kept separate from the grid above so that structural
-    # changes (which Streamlit always remounts the grid for) don't happen on
-    # every price keystroke, only when you actually add or remove a card.
+    # Add / remove cards — autocomplete selectbox powered by downloaded ck_prices keys
     add_col, remove_col = st.columns([1, 2])
 
     with add_col:
-        st.text_input("Add card", key="new_card_name", placeholder="Card name")
+        card_options = (
+            sorted([name.title() for name in st.session_state.ck_prices.keys()])
+            if "ck_prices" in st.session_state and st.session_state.ck_prices
+            else []
+        )
+        st.selectbox(
+            "Add card",
+            options=[""] + card_options,
+            key="new_card_name",
+            placeholder="Search card name...",
+        )
         st.button("➕ Add card", on_click=add_card)
 
     with remove_col:
