@@ -150,7 +150,10 @@ def update_qtty_editor():
     st.session_state.data = df
 
 
-def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
+def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
+    if normalize_value(name) is None:
+        return None
+
     if pd.isna(qtty) or pd.isna(price) or qtty is None or price is None:
         return None
 
@@ -168,7 +171,10 @@ def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
 
 
-def calculate_mm(qtty, mm_price, dolar_blue):
+def calculate_mm(name, qtty, mm_price, dolar_blue):
+    if normalize_value(name) is None:
+        return None
+
     if pd.isna(qtty) or pd.isna(mm_price) or qtty is None or mm_price is None:
         return None
 
@@ -180,7 +186,10 @@ def calculate_mm(qtty, mm_price, dolar_blue):
     )
 
 
-def calculate_ago(qtty, ago_price, dolar_blue):
+def calculate_ago(name, qtty, ago_price, dolar_blue):
+    if normalize_value(name) is None:
+        return None
+
     if pd.isna(qtty) or pd.isna(ago_price) or qtty is None or ago_price is None:
         return None
 
@@ -303,28 +312,42 @@ def main_content():
 
     calc_df["CK F"] = input_df.apply(
         lambda row: calculate_diego_tcg(
-            row.get("Qtty", None), row.get("CK", None), CK_MARGIN, dolar_blue
+            row.get("Name", None),
+            row.get("Qtty", None),
+            row.get("CK", None),
+            CK_MARGIN,
+            dolar_blue,
         ),
         axis=1,
     )
 
     calc_df["CS F"] = input_df.apply(
         lambda row: calculate_diego_tcg(
-            row.get("Qtty", None), row.get("CS", None), CS_MARGIN, dolar_blue
+            row.get("Name", None),
+            row.get("Qtty", None),
+            row.get("CS", None),
+            CS_MARGIN,
+            dolar_blue,
         ),
         axis=1,
     )
 
     calc_df["MM F"] = input_df.apply(
         lambda row: calculate_mm(
-            row.get("Qtty", None), row.get("MM", None), dolar_blue
+            row.get("Name", None),
+            row.get("Qtty", None),
+            row.get("MM", None),
+            dolar_blue,
         ),
         axis=1,
     )
 
     calc_df["Ago F"] = input_df.apply(
         lambda row: calculate_ago(
-            row.get("Qtty", None), row.get("Ago", None), agora_dolar_ref
+            row.get("Name", None),
+            row.get("Qtty", None),
+            row.get("Ago", None),
+            agora_dolar_ref,
         ),
         axis=1,
     )
