@@ -43,45 +43,28 @@ hr {
 /* Buttons */
 .stButton>button,
 [data-testid="stDownloadButton"]>button {
-    background-color: #2e8b57 !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 4px !important;
+    background-color: #2e8b57;
+    color: #ffffff;
+    border: none;
 }
 
 .stButton>button:hover,
 [data-testid="stDownloadButton"]>button:hover {
-    background-color: #2f4f4f !important;
-    color: #ffffff !important;
-    border: 1px solid #f0fff0 !important;
+    background-color: #2f4f4f;
+    color: #ffffff;
+    border: 1px solid #f0fff0;
 }
 
 /* Upload Button */
 [data-testid="stFileUploaderDropzone"] {
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
+    background: transparent;
+    padding: 0;
 }
 
 [data-testid="stFileUploaderDropzone"] button {
-    width: 100% !important;
-    min-height: 38px !important;
-    background-color: #2e8b57 !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 4px !important;
-    box-shadow: none !important;
-}
-
-[data-testid="stFileUploaderDropzone"] button:hover {
-    background-color: #2f4f4f !important;
-    color: #ffffff !important;
-    border: 1px solid #f0fff0 !important;
-}
-
-/* Hide the "Drag and drop..." / file size text */
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    display: none !important;
+    width: 100%;
+    background-color: #2e8b57;
+    color: #ffffff;
 }
 
 /* Data editor tooltips */

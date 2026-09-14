@@ -4,6 +4,9 @@ A: You enter card names, quantities, and reference prices from different vendors
 ##### Q: How is the Dólar Blue rate updated?
 A: The app automatically fetches the current Dólar Blue "venta" rate from the internet upon loading. You can also manually adjust the Agora Dólar Reference from the sidebar.
 
+##### Q: What does the "Update CK Prices" button do?
+A: It automatically fetches and fills in the latest Card Kingdom prices for your listed cards into the "Cheapest CK NM" column. If a card has multiple versions, it automatically selects the cheapest non-foil NM price.
+
 ##### Q: What are the checkmarks (✓) used for in the Final Prices section?
 A: Checking the boxes next to items allows you to dynamically sum up specific subsets of cards and estimate what will go to each vendor.
 

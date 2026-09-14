@@ -4,7 +4,7 @@ from utils import (
     get_card_kingdom_pricelist,
     get_dolar_blue_venta,
     load_faq,
-    local_css,
+    load_local_css,
     set_default_data,
     sidebar_file_loader,
     sidebar_file_saver,
@@ -44,12 +44,11 @@ def calculate_ago(qtty, ago_price, dolar_blue):
 
 
 # Load the external stylesheet
-local_css("styles.css")
+load_local_css("styles.css")
 
 # Data initialization variables
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
-
 dolar_blue = get_dolar_blue_venta()
 
 if "data" not in st.session_state:
@@ -77,6 +76,7 @@ agora_dolar_ref = st.sidebar.number_input(
 st.sidebar.write("---")
 
 st.sidebar.header("Data Management")
+
 sidebar_file_loader()
 
 
@@ -117,8 +117,8 @@ input_df = st.data_editor(
     },
 )
 
-# API update button placed cleanly below the data editor
-if st.button("Update CK Prices from API", use_container_width=False):
+# API update button
+if st.button("Update CK Prices", use_container_width=False):
     with st.spinner("Fetching Card Kingdom pricelist..."):
         current_df = input_df.copy()
         ck_prices = get_card_kingdom_pricelist()
@@ -289,7 +289,7 @@ with cols[4]:
 
 st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
-# --- F.A.Q. SECTION ---
+# F.A.Q. SECTION
 st.write("---")
 with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):
     faq_text = load_faq("faq.md")
