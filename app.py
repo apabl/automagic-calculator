@@ -47,8 +47,8 @@ def sync_api_prices(df):
     if "Name" not in new_df.columns:
         return new_df, False
 
-    # Define the canonical column order
-    canonical_cols = ["Name", "Edition", "API", "Qtty", "CK", "CS", "MM", "Ago"]
+    # Define the canonical column order with CK before CS
+    canonical_cols = ["Name", "API", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
 
     for col in canonical_cols:
         if col not in new_df.columns:
@@ -95,10 +95,8 @@ def sync_api_prices(df):
 
 def update_base_editor():
     """Apply data editor changes and synchronize API-derived fields."""
-    # Construct the correct dynamic key matching the data editor widget
     editor_key = f"base_editor_{st.session_state.base_editor_key}"
 
-    # Safely retrieve the editor state, defaulting to an empty structure if missing
     editor_state = st.session_state.get(
         editor_key, {"edited_rows": {}, "deleted_rows": [], "added_rows": []}
     )
@@ -123,8 +121,11 @@ def update_base_editor():
     added_rows = editor_state.get("added_rows", [])
 
     if added_rows:
+        new_rows_df = pd.DataFrame(added_rows)
+        if "Qtty" not in new_rows_df.columns:
+            new_rows_df["Qtty"] = 1
         df = pd.concat(
-            [df, pd.DataFrame(added_rows)],
+            [df, new_rows_df],
             ignore_index=True,
         )
 
@@ -132,10 +133,21 @@ def update_base_editor():
     df, _ = sync_api_prices(df)
 
     st.session_state.data = df
-
-    # Changing the editor key forces only this editor to use the
-    # synchronized dataframe on the next fragment rerun.
     st.session_state.base_editor_key += 1
+
+
+def update_qtty_editor():
+    """Apply Qtty changes from the lower base grid to session state data."""
+    editor_state = st.session_state.get("grid_base", {"edited_rows": {}})
+    df = st.session_state.data.copy()
+
+    for row_idx, changes in editor_state.get("edited_rows", {}).items():
+        row_idx = int(row_idx)
+        for col, value in changes.items():
+            if row_idx in df.index and col == "Qtty":
+                df.at[row_idx, col] = value
+
+    st.session_state.data = df
 
 
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
@@ -241,33 +253,32 @@ def main_content():
     st.title("Automagic Calculator")
     st.write("---")
 
-    # 1. Base Input Grid
+    # 1. Base Input Grid (Qtty column excluded)
     st.subheader("1. Enter Base Values")
 
+    upper_display_df = st.session_state.data.drop(columns=["Qtty"], errors="ignore")
+
     st.data_editor(
-        st.session_state.data,
+        upper_display_df,
         num_rows="dynamic",
         width="stretch",
         height="content",
         key=f"base_editor_{st.session_state.base_editor_key}",
         on_change=update_base_editor,
-        disabled=["Edition", "API"],
+        disabled=["API", "Edition"],
         column_config={
             "Name": st.column_config.TextColumn("Card Name", width="medium"),
-            "Edition": st.column_config.TextColumn(
-                "🔒    Cheapest Edition", width="medium"
-            ),
             "API": st.column_config.NumberColumn(
                 "🔒    Cheapest Price", format="%.2f", step=0.01, width="small"
             ),
-            "Qtty": st.column_config.NumberColumn(
-                "Qtty", format="%d", step=1, min_value=0, width="small"
-            ),
-            "CS": st.column_config.NumberColumn(
-                "CoolStuffInc", format="%.2f", step=0.01, width="small"
+            "Edition": st.column_config.TextColumn(
+                "🔒    Cheapest Edition", width="medium"
             ),
             "CK": st.column_config.NumberColumn(
                 "Card Kingdom", format="%.2f", step=0.01, width="small"
+            ),
+            "CS": st.column_config.NumberColumn(
+                "CoolStuffInc", format="%.2f", step=0.01, width="small"
             ),
             "MM": st.column_config.NumberColumn(
                 "Multi Margin", format="%.2f", step=0.01, width="small"
@@ -320,7 +331,6 @@ def main_content():
 
     calc_df = normalize_df(calc_df)
 
-
     # 3. Output Grids with Column Metrics
     st.subheader("2. Final Prices")
 
@@ -339,10 +349,13 @@ def main_content():
             height="content",
             hide_index=True,
             key="grid_base",
-            disabled=["Name", "Qtty"],
+            on_change=update_qtty_editor,
+            disabled=["Name"],  # Qtty is now editable here
             column_config={
                 "Name": st.column_config.TextColumn("Card Name", width="medium"),
-                "Qtty": st.column_config.NumberColumn("Qtty", format="%d"),
+                "Qtty": st.column_config.NumberColumn(
+                    "Qtty", format="%d", step=1, min_value=0, width="small"
+                ),
             },
         )
 
