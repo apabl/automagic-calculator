@@ -15,18 +15,42 @@ st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
 
 def sync_api_prices(df):
+    """Helper function to automatically align API prices and SKUs with current card names."""
     updated = False
     new_df = df.copy()
-    if "Name" not in new_df.columns or "API" not in new_df.columns:
+    if "Name" not in new_df.columns:
         return new_df, False
+
+    # Ensure API and SKU columns exist
+    if "API" not in new_df.columns:
+        new_df["API"] = 0.0
+        updated = True
+    if "SKU" not in new_df.columns:
+        api_idx = new_df.columns.get_loc("API")
+        new_df.insert(api_idx, "SKU", "")
+        updated = True
 
     for idx, row in new_df.iterrows():
         card_name = str(row.get("Name", "")).strip()
         card_key = card_name.lower()
-        expected_api = st.session_state.ck_prices.get(card_key, 0.0)
+        card_data = st.session_state.ck_prices.get(card_key)
 
-        if row.get("API", 0.0) != expected_api:
+        if isinstance(card_data, dict):
+            expected_api = card_data.get("price", 0.0)
+            expected_sku = card_data.get("sku", "")
+        elif isinstance(card_data, (int, float)):
+            expected_api = float(card_data)
+            expected_sku = ""
+        else:
+            expected_api = 0.0
+            expected_sku = ""
+
+        if (
+            row.get("API", 0.0) != expected_api
+            or str(row.get("SKU", "")) != expected_sku
+        ):
             new_df.at[idx, "API"] = expected_api
+            new_df.at[idx, "SKU"] = expected_sku
             updated = True
 
     return new_df, updated
@@ -70,7 +94,7 @@ CS_MARGIN = 13.0
 
 dolar_blue = get_dolar_blue_venta()
 
-if "ck_prices" not in st.session_state:
+if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
     with st.spinner("Fetching Card Kingdom pricelist..."):
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
@@ -119,12 +143,13 @@ input_df = st.data_editor(
     width="stretch",
     height="content",
     key=f"base_editor_{st.session_state.base_editor_key}",
-    disabled=["API"],
+    disabled=["SKU", "API"],
     column_config={
         "Name": st.column_config.TextColumn("Card Name", width="medium"),
         "Qtty": st.column_config.NumberColumn(
             "Qtty", format="%d", step=1, min_value=0, width="small"
         ),
+        "SKU": st.column_config.TextColumn("🔒    SKU", width="small"),
         "API": st.column_config.NumberColumn(
             "🔒    Cheapest CK NM", format="%.2f", step=0.01, width="small"
         ),

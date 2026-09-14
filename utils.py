@@ -33,41 +33,51 @@ def get_dolar_blue_venta():
 @st.cache_data(ttl=21600)  # 6 hours
 def get_card_kingdom_pricelist():
     """Fetches and caches the Card Kingdom pricelist, finding the cheapest
-    non-foil (or fallback foil) price across all versions/printings.
+    non-foil (or fallback foil) price, expansion name, and full SKU
+    across all versions/printings.
     """
     try:
         url = "https://api.cardkingdom.com/api/v2/pricelist"
         response = requests.get(url, timeout=15)
         if response.status_code == 200:
             data = response.json().get("data", [])
-            non_foil_prices = {}
-            foil_prices = {}
+            non_foil_data = {}
+            foil_data = {}
 
             for item in data:
                 name = item.get("name", "").strip().lower()
                 is_foil = item.get("is_foil", False)
+                edition = item.get("edition", "").strip()
+                sku = item.get("sku", "").strip()
+
                 try:
                     price = float(item.get("price_retail", 0.0))
                 except (ValueError, TypeError):
                     price = 0.0
 
                 if name and price > 0:
+                    card_info = {
+                        "price": price,
+                        "edition": edition,
+                        "sku": sku
+                    }
+
                     if not is_foil:
-                        if name not in non_foil_prices or price < non_foil_prices[name]:
-                            non_foil_prices[name] = price
+                        if name not in non_foil_data or price < non_foil_data[name]["price"]:
+                            non_foil_data[name] = card_info
                     else:
-                        if name not in foil_prices or price < foil_prices[name]:
-                            foil_prices[name] = price
+                        if name not in foil_data or price < foil_data[name]["price"]:
+                            foil_data[name] = card_info
 
             # Combine: Prefer the lowest non-foil price,
             # fallback to lowest foil if no non-foil exists
             ck_dict = {}
-            all_names = set(non_foil_prices.keys()).union(set(foil_prices.keys()))
+            all_names = set(non_foil_data.keys()).union(set(foil_data.keys()))
             for name in all_names:
-                if name in non_foil_prices:
-                    ck_dict[name] = non_foil_prices[name]
+                if name in non_foil_data:
+                    ck_dict[name] = non_foil_data[name]
                 else:
-                    ck_dict[name] = foil_prices[name]
+                    ck_dict[name] = foil_data[name]
 
             return ck_dict
     except Exception:
