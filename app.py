@@ -47,19 +47,16 @@ def sync_api_prices(df):
     if "Name" not in new_df.columns:
         return new_df, False
 
-    # Define the canonical column order: Name, Edition, API, Qtty, CS, CK, MM, Ago
-    canonical_cols = ["Name", "Edition", "API", "Qtty", "CS", "CK", "MM", "Ago"]
+    # Define the canonical column order
+    canonical_cols = ["Name", "Edition", "API", "Qtty", "CK", "CS", "MM", "Ago"]
 
-    # Ensure all canonical columns exist
     for col in canonical_cols:
         if col not in new_df.columns:
             new_df[col] = None
             updated = True
 
     # Enforce strict column sequencing
-    existing_canonical = [col for col in canonical_cols if col in new_df.columns]
-    other_cols = [col for col in new_df.columns if col not in canonical_cols]
-    ordered_cols = existing_canonical + other_cols
+    ordered_cols = [col for col in canonical_cols if col in new_df.columns]
 
     if list(new_df.columns) != ordered_cols:
         new_df = new_df[ordered_cols]
@@ -181,6 +178,16 @@ def calculate_ago(qtty, ago_price, dolar_blue):
     return int(round(qtty * ago_price * dolar_blue))
 
 
+def calculate_subtotal(edited_df, col_name):
+    if "✓" in edited_df.columns:
+        return (
+            pd.to_numeric(edited_df.loc[edited_df["✓"], col_name], errors="coerce")
+            .fillna(0)
+            .sum()
+        )
+    return 0
+
+
 # Load the external stylesheet
 load_local_css("styles.css")
 
@@ -237,7 +244,7 @@ def main_content():
     # 1. Base Input Grid
     st.subheader("1. Enter Base Values")
 
-    input_df = st.data_editor(
+    st.data_editor(
         st.session_state.data,
         num_rows="dynamic",
         width="stretch",
@@ -271,7 +278,7 @@ def main_content():
         },
     )
 
-    # Use the synchronized dataframe
+    # Use the synchronized dataframe directly
     input_df = st.session_state.data
 
     # File saver uses the synchronized DataFrame
@@ -313,6 +320,7 @@ def main_content():
 
     calc_df = normalize_df(calc_df)
 
+
     # 3. Output Grids with Column Metrics
     st.subheader("2. Final Prices")
 
@@ -325,7 +333,7 @@ def main_content():
     cols = st.columns([1.2, 1, 1, 1, 1])
 
     with cols[0]:
-        edited_base = st.data_editor(
+        st.data_editor(
             df_base,
             width="stretch",
             height="content",
@@ -353,14 +361,7 @@ def main_content():
                 ),
             },
         )
-        ck_sum = (
-            pd.to_numeric(edited_ck.loc[edited_ck["✓"], "CK F"], errors="coerce")
-            .fillna(0)
-            .sum()
-            if "✓" in edited_ck.columns
-            else 0
-        )
-        st.metric("Subtotal", f"$ {int(ck_sum):,}")
+        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ck, 'CK F')):,}")
 
     with cols[2]:
         edited_cs = st.data_editor(
@@ -377,14 +378,7 @@ def main_content():
                 ),
             },
         )
-        cs_sum = (
-            pd.to_numeric(edited_cs.loc[edited_cs["✓"], "CS F"], errors="coerce")
-            .fillna(0)
-            .sum()
-            if "✓" in edited_cs.columns
-            else 0
-        )
-        st.metric("Subtotal", f"$ {int(cs_sum):,}")
+        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_cs, 'CS F')):,}")
 
     with cols[3]:
         edited_mm = st.data_editor(
@@ -401,14 +395,7 @@ def main_content():
                 ),
             },
         )
-        mm_sum = (
-            pd.to_numeric(edited_mm.loc[edited_mm["✓"], "MM F"], errors="coerce")
-            .fillna(0)
-            .sum()
-            if "✓" in edited_mm.columns
-            else 0
-        )
-        st.metric("Subtotal", f"$ {int(mm_sum):,}")
+        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_mm, 'MM F')):,}")
 
     with cols[4]:
         edited_ago = st.data_editor(
@@ -425,14 +412,7 @@ def main_content():
                 ),
             },
         )
-        ago_sum = (
-            pd.to_numeric(edited_ago.loc[edited_ago["✓"], "Ago F"], errors="coerce")
-            .fillna(0)
-            .sum()
-            if "✓" in edited_ago.columns
-            else 0
-        )
-        st.metric("Subtotal", f"$ {int(ago_sum):,}")
+        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ago, 'Ago F')):,}")
 
     st.caption(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
