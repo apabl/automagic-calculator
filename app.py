@@ -1,3 +1,4 @@
+import random
 import pandas as pd
 import streamlit as st
 from utils import (
@@ -5,13 +6,14 @@ from utils import (
     get_dolar_blue_venta,
     load_faq,
     load_local_css,
-    set_default_data,
     sidebar_file_loader,
     sidebar_file_saver,
 )
 
 # Always call set_page_config first
 st.set_page_config(page_title="Automagic Calculator", layout="wide")
+
+CANONICAL_COLS = ["Name", "API", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
 
 
 def normalize_value(value):
@@ -39,89 +41,56 @@ def normalize_df(df):
     return new_df
 
 
-def sync_api_prices(df, full_normalize=False):
-    """Aligns API prices and editions with current card names and enforces proper column order.
+def ensure_columns(df):
+    """Guarantee the canonical columns exist, in order.
 
-    full_normalize=True runs the whole-frame blank/zero cleanup (normalize_df), which can
-    change column dtypes. Only pass True on structural changes (row add/remove) or one-off
-    loads (startup, file load). Plain cell edits use the lightweight path so the fixed-row
-    editor can patch in place instead of remounting.
+    No API/Edition lookups happen here anymore — cards can now only be added via
+    add_card(), which pulls price/edition straight from ck_prices at add-time. So
+    there's nothing left to keep in sync on every edit; this just keeps the shape
+    of the dataframe consistent.
     """
-    updated = False
+    new_df = df.copy()
 
-    new_df = normalize_df(df) if full_normalize else df.copy()
-
-    if "Name" not in new_df.columns:
-        return new_df, False
-
-    # Define the canonical column order with CK before CS
-    canonical_cols = ["Name", "API", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
-
-    for col in canonical_cols:
+    for col in CANONICAL_COLS:
         if col not in new_df.columns:
             new_df[col] = None
-            updated = True
 
-    # Enforce strict column sequencing
-    ordered_cols = [col for col in canonical_cols if col in new_df.columns]
+    return new_df[CANONICAL_COLS]
 
-    if list(new_df.columns) != ordered_cols:
-        new_df = new_df[ordered_cols]
-        updated = True
 
-    for idx, row in new_df.iterrows():
-        # Only normalized for the lookup key; not written back into the dataframe.
-        card_name = normalize_value(row.get("Name"))
+def build_row_from_ck(card_name):
+    """Look up a card's price/edition in ck_prices and build a single-row dict.
 
-        # Name is the key. No name means no API-derived data.
-        if card_name is None:
-            if new_df.at[idx, "Edition"] is not None:
-                new_df.at[idx, "Edition"] = None
-                updated = True
-
-            if new_df.at[idx, "API"] is not None:
-                new_df.at[idx, "API"] = None
-                updated = True
-
-            continue
-
-        card_data = st.session_state.ck_prices.get(card_name.lower(), {})
-
-        expected_api = normalize_value(card_data.get("price"))
-        expected_edition = normalize_value(card_data.get("edition"))
-
-        if new_df.at[idx, "API"] != expected_api:
-            new_df.at[idx, "API"] = expected_api
-            updated = True
-
-        if new_df.at[idx, "Edition"] != expected_edition:
-            new_df.at[idx, "Edition"] = expected_edition
-            updated = True
-
-    return new_df, updated
+    ck_prices keys use the API's original casing (no .lower()/.title() round-trip,
+    which used to mangle names like "Urza's Saga" into "Urza'S Saga"), so the
+    lookup here is a direct, exact match.
+    """
+    card_data = st.session_state.ck_prices.get(card_name, {})
+    return {
+        "Name": card_name,
+        "API": normalize_value(card_data.get("price")),
+        "Edition": normalize_value(card_data.get("edition")),
+        "Qtty": 1,
+    }
 
 
 def update_base_editor():
-    """Apply cell edits from the fixed-row top grid and synchronize API-derived fields.
+    """Apply cell edits from the fixed-row top grid.
 
-    This grid is num_rows="fixed" now, so edited_rows is the only thing that can appear
-    here (no added_rows/deleted_rows) — structural changes are handled separately by
-    add_card()/remove_cards() below, which is what keeps this path flash-free.
+    Name/API/Edition are disabled here — cards only enter the table through
+    add_card() — so this only ever touches CK/CS/MM/Ago/Qtty cells, one at a time,
+    which is what keeps it flash-free.
     """
     editor_key = f"base_editor_{st.session_state.base_editor_key}"
-
     editor_state = st.session_state.get(editor_key, {"edited_rows": {}})
 
     df = st.session_state.data.copy()
 
     for row_idx, changes in editor_state.get("edited_rows", {}).items():
         row_idx = int(row_idx)
-
         for col, value in changes.items():
             if row_idx in df.index:
                 df.at[row_idx, col] = value
-
-    df, _ = sync_api_prices(df, full_normalize=False)
 
     st.session_state.data = df
 
@@ -141,33 +110,31 @@ def update_qtty_editor():
 
 
 def add_card():
-    """Append a new blank card row. Structural change — a grid remount here is expected
-    and rare, unlike editing prices which now happens on a fixed-row grid."""
-    new_name = st.session_state.get("new_card_name", "").strip()
+    """Append a card picked from the ck_prices-backed dropdown. Price/Edition come
+    straight from ck_prices — no separate sync step needed since this is the only
+    place a card's Name ever gets set."""
+    new_name = st.session_state.get("new_card_name", "")
     if not new_name:
         return
 
-    new_row = pd.DataFrame([{"Name": new_name, "Qtty": 1}])
+    new_row = pd.DataFrame([build_row_from_ck(new_name)])
     df = pd.concat([st.session_state.data, new_row], ignore_index=True)
-    df, _ = sync_api_prices(df, full_normalize=True)
 
-    st.session_state.data = df
+    st.session_state.data = ensure_columns(df)
     st.session_state.base_editor_key += 1
     st.session_state.new_card_name = ""
 
 
 def remove_cards():
-    """Remove the cards selected in the 'Remove cards' multiselect. Structural change —
-    handled separately from cell edits so the top grid stays flash-free."""
+    """Remove the cards selected in the 'Remove cards' multiselect."""
     to_remove = st.session_state.get("cards_to_remove", [])
     if not to_remove:
         return
 
     df = st.session_state.data
     df = df[~df["Name"].isin(to_remove)].reset_index(drop=True)
-    df, _ = sync_api_prices(df, full_normalize=True)
 
-    st.session_state.data = df
+    st.session_state.data = ensure_columns(df)
     st.session_state.base_editor_key += 1
     st.session_state.cards_to_remove = []
 
@@ -245,9 +212,19 @@ if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
 if "data" not in st.session_state:
-    st.session_state.data = normalize_df(set_default_data())
+    # Seed the table with 5 random cards from the pricelist instead of a fixed
+    # default dataset, so there's always something on screen without hardcoding it.
+    if st.session_state.ck_prices:
+        sample_names = random.sample(
+            list(st.session_state.ck_prices.keys()),
+            k=min(4, len(st.session_state.ck_prices)),
+        )
+        seed_rows = [build_row_from_ck(name) for name in sample_names]
+        st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
+    else:
+        st.session_state.data = ensure_columns(pd.DataFrame())
 else:
-    st.session_state.data = normalize_df(st.session_state.data)
+    st.session_state.data = ensure_columns(st.session_state.data)
 
 if "base_editor_key" not in st.session_state:
     st.session_state.base_editor_key = 0
@@ -274,8 +251,9 @@ st.sidebar.header("Data Management")
 
 sidebar_file_loader()
 
-# Covers app startup & file loading
-st.session_state.data, _ = sync_api_prices(st.session_state.data, full_normalize=True)
+# Covers app startup & any file load — just keeps the column shape consistent,
+# no API/Edition re-lookup needed anymore.
+st.session_state.data = ensure_columns(st.session_state.data)
 
 
 @st.fragment
@@ -291,7 +269,8 @@ def main_content():
 
     # num_rows="fixed" (the default) — adding/removing rows is handled by the
     # controls below instead, so editing a price cell here only patches that one
-    # cell in place rather than forcing the whole grid to remount.
+    # cell in place rather than forcing the whole grid to remount. Name/API/Edition
+    # are disabled since cards only enter the table via add_card().
     st.data_editor(
         upper_display_df,
         num_rows="fixed",
@@ -299,7 +278,7 @@ def main_content():
         height="content",
         key=f"base_editor_{st.session_state.base_editor_key}",
         on_change=update_base_editor,
-        disabled=["API", "Edition"],
+        disabled=["Name", "API", "Edition"],
         column_config={
             "Name": st.column_config.TextColumn("Card Name", width="medium"),
             "API": st.column_config.NumberColumn(
@@ -326,8 +305,8 @@ def main_content():
 
     with add_col:
         card_options = (
-            sorted([name.title() for name in st.session_state.ck_prices.keys()])
-            if "ck_prices" in st.session_state and st.session_state.ck_prices
+            sorted(st.session_state.ck_prices.keys())
+            if st.session_state.ck_prices
             else []
         )
         st.selectbox(

@@ -44,7 +44,7 @@ def get_card_kingdom_pricelist():
             ck_dict = {}
 
             for item in data:
-                name = item.get("name", "").strip().lower()
+                name = item.get("name", "").strip()
                 is_foil = item.get("is_foil", False)
                 edition = item.get("edition", "").strip()
                 sku = item.get("sku", "").strip()
@@ -128,6 +128,17 @@ def sidebar_file_loader():
                         f"Incompatible file! Missing columns: {', '.join(missing_cols)}"
                     )
                     return
+
+                ck_prices = st.session_state.get("ck_prices", {})
+                api_values = []
+                edition_values = []
+                for name in loaded_df["Name"]:
+                    card_data = ck_prices.get(name, {}) if isinstance(name, str) else {}
+                    api_values.append(card_data.get("price"))
+                    edition_values.append(card_data.get("edition"))
+
+                loaded_df["API"] = api_values
+                loaded_df["Edition"] = edition_values
 
                 st.session_state.data = loaded_df
                 st.session_state.data_file_loaded = True
