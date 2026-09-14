@@ -14,6 +14,24 @@ from utils import (
 st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
 
+def sync_api_prices(df):
+    updated = False
+    new_df = df.copy()
+    if "Name" not in new_df.columns or "API" not in new_df.columns:
+        return new_df, False
+
+    for idx, row in new_df.iterrows():
+        card_name = str(row.get("Name", "")).strip()
+        card_key = card_name.lower()
+        expected_api = st.session_state.ck_prices.get(card_key, 0.0)
+
+        if row.get("API", 0.0) != expected_api:
+            new_df.at[idx, "API"] = expected_api
+            updated = True
+
+    return new_df, updated
+
+
 def calculate_diego_tcg(qtty, price, added_margin, dolar_blue):
     if pd.isna(qtty) or pd.isna(price) or qtty == 0 or price == 0:
         return 0
@@ -46,10 +64,15 @@ def calculate_ago(qtty, ago_price, dolar_blue):
 # Load the external stylesheet
 load_local_css("styles.css")
 
-# Data initialization variables
+# Data initialization
 CK_MARGIN = 20.0
 CS_MARGIN = 13.0
+
 dolar_blue = get_dolar_blue_venta()
+
+if "ck_prices" not in st.session_state:
+    with st.spinner("Fetching Card Kingdom pricelist..."):
+        st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
 if "data" not in st.session_state:
     st.session_state.data = set_default_data()
@@ -78,6 +101,9 @@ st.sidebar.write("---")
 st.sidebar.header("Data Management")
 
 sidebar_file_loader()
+
+# Covers app startup & file loading
+st.session_state.data, _ = sync_api_prices(st.session_state.data)
 
 
 # Main Page
@@ -117,37 +143,13 @@ input_df = st.data_editor(
     },
 )
 
-# API update button
-if st.button("Update CK Prices", use_container_width=False):
-    with st.spinner("Fetching Card Kingdom pricelist..."):
-        current_df = input_df.copy()
-        ck_prices = get_card_kingdom_pricelist()
+# Sync and check if the user edited card names in the editor grid
+synced_input_df, editor_updated = sync_api_prices(input_df)
 
-        if ck_prices:
-            updated_count = 0
-            not_found_count = 0
-
-            for idx, row in current_df.iterrows():
-                card_name = str(row.get("Name", "")).strip().lower()
-
-                if card_name in ck_prices:
-                    current_df.at[idx, "API"] = ck_prices[card_name]
-                    updated_count += 1
-                else:
-                    not_found_count += 1
-
-            # Replace the backing dataset only because the API has actually
-            # changed the underlying data, then recreate the editor once.
-            st.session_state.data = current_df
-            st.session_state.base_editor_key += 1
-
-            st.success(
-                f"Updated API prices for {updated_count} card(s). "
-                f"{not_found_count} card(s) not found (left unchanged)."
-            )
-            st.rerun()
-        else:
-            st.error("Failed to fetch Card Kingdom price list.")
+if editor_updated or not synced_input_df.equals(st.session_state.data):
+    st.session_state.data = synced_input_df
+    st.session_state.base_editor_key += 1
+    st.rerun()
 
 # File saver uses the live edited DataFrame directly
 sidebar_file_saver(input_df)
