@@ -39,10 +39,17 @@ def normalize_df(df):
     return new_df
 
 
-def sync_api_prices(df):
-    """Aligns API prices and editions with current card names and enforces proper column order."""
+def sync_api_prices(df, full_normalize=False):
+    """Aligns API prices and editions with current card names and enforces proper column order.
+
+    full_normalize=True runs the whole-frame blank/zero cleanup (normalize_df), which can
+    change column dtypes. Only pass True on structural changes (row add/remove) or one-off
+    loads (startup, file load). Plain cell edits use the lightweight path so the fixed-row
+    editor can patch in place instead of remounting.
+    """
     updated = False
-    new_df = normalize_df(df)
+
+    new_df = normalize_df(df) if full_normalize else df.copy()
 
     if "Name" not in new_df.columns:
         return new_df, False
@@ -63,6 +70,7 @@ def sync_api_prices(df):
         updated = True
 
     for idx, row in new_df.iterrows():
+        # Only normalized for the lookup key; not written back into the dataframe.
         card_name = normalize_value(row.get("Name"))
 
         # Name is the key. No name means no API-derived data.
@@ -94,16 +102,18 @@ def sync_api_prices(df):
 
 
 def update_base_editor():
-    """Apply data editor changes and synchronize API-derived fields."""
+    """Apply cell edits from the fixed-row top grid and synchronize API-derived fields.
+
+    This grid is num_rows="fixed" now, so edited_rows is the only thing that can appear
+    here (no added_rows/deleted_rows) — structural changes are handled separately by
+    add_card()/remove_cards() below, which is what keeps this path flash-free.
+    """
     editor_key = f"base_editor_{st.session_state.base_editor_key}"
 
-    editor_state = st.session_state.get(
-        editor_key, {"edited_rows": {}, "deleted_rows": [], "added_rows": []}
-    )
+    editor_state = st.session_state.get(editor_key, {"edited_rows": {}})
 
     df = st.session_state.data.copy()
 
-    # Apply edited cells
     for row_idx, changes in editor_state.get("edited_rows", {}).items():
         row_idx = int(row_idx)
 
@@ -111,29 +121,9 @@ def update_base_editor():
             if row_idx in df.index:
                 df.at[row_idx, col] = value
 
-    # Delete rows
-    deleted_rows = editor_state.get("deleted_rows", [])
-
-    if deleted_rows:
-        df = df.drop(index=deleted_rows)
-
-    # Add rows
-    added_rows = editor_state.get("added_rows", [])
-
-    if added_rows:
-        new_rows_df = pd.DataFrame(added_rows)
-        if "Qtty" not in new_rows_df.columns:
-            new_rows_df["Qtty"] = 1
-        df = pd.concat(
-            [df, new_rows_df],
-            ignore_index=True,
-        )
-
-    df = df.reset_index(drop=True)
-    df, _ = sync_api_prices(df)
+    df, _ = sync_api_prices(df, full_normalize=False)
 
     st.session_state.data = df
-    st.session_state.base_editor_key += 1
 
 
 def update_qtty_editor():
@@ -148,6 +138,38 @@ def update_qtty_editor():
                 df.at[row_idx, col] = value
 
     st.session_state.data = df
+
+
+def add_card():
+    """Append a new blank card row. Structural change — a grid remount here is expected
+    and rare, unlike editing prices which now happens on a fixed-row grid."""
+    new_name = st.session_state.get("new_card_name", "").strip()
+    if not new_name:
+        return
+
+    new_row = pd.DataFrame([{"Name": new_name, "Qtty": 1}])
+    df = pd.concat([st.session_state.data, new_row], ignore_index=True)
+    df, _ = sync_api_prices(df, full_normalize=True)
+
+    st.session_state.data = df
+    st.session_state.base_editor_key += 1
+    st.session_state.new_card_name = ""
+
+
+def remove_cards():
+    """Remove the cards selected in the 'Remove cards' multiselect. Structural change —
+    handled separately from cell edits so the top grid stays flash-free."""
+    to_remove = st.session_state.get("cards_to_remove", [])
+    if not to_remove:
+        return
+
+    df = st.session_state.data
+    df = df[~df["Name"].isin(to_remove)].reset_index(drop=True)
+    df, _ = sync_api_prices(df, full_normalize=True)
+
+    st.session_state.data = df
+    st.session_state.base_editor_key += 1
+    st.session_state.cards_to_remove = []
 
 
 def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
@@ -253,7 +275,7 @@ st.sidebar.header("Data Management")
 sidebar_file_loader()
 
 # Covers app startup & file loading
-st.session_state.data, _ = sync_api_prices(st.session_state.data)
+st.session_state.data, _ = sync_api_prices(st.session_state.data, full_normalize=True)
 
 
 @st.fragment
@@ -267,9 +289,12 @@ def main_content():
 
     upper_display_df = st.session_state.data.drop(columns=["Qtty"], errors="ignore")
 
+    # num_rows="fixed" (the default) — adding/removing rows is handled by the
+    # controls below instead, so editing a price cell here only patches that one
+    # cell in place rather than forcing the whole grid to remount.
     st.data_editor(
         upper_display_df,
-        num_rows="dynamic",
+        num_rows="fixed",
         width="stretch",
         height="content",
         key=f"base_editor_{st.session_state.base_editor_key}",
@@ -295,6 +320,24 @@ def main_content():
             "Ago": st.column_config.NumberColumn("Agora", format="%.2f", step=0.01),
         },
     )
+
+    # Add / remove cards — kept separate from the grid above so that structural
+    # changes (which Streamlit always remounts the grid for) don't happen on
+    # every price keystroke, only when you actually add or remove a card.
+    add_col, remove_col = st.columns([1, 2])
+
+    with add_col:
+        st.text_input("Add card", key="new_card_name", placeholder="Card name")
+        st.button("➕ Add card", on_click=add_card)
+
+    with remove_col:
+        card_names = (
+            st.session_state.data["Name"].dropna().tolist()
+            if "Name" in st.session_state.data.columns
+            else []
+        )
+        st.multiselect("Remove cards", options=card_names, key="cards_to_remove")
+        st.button("🗑 Remove selected", on_click=remove_cards)
 
     # Use the synchronized dataframe directly
     input_df = st.session_state.data
