@@ -77,37 +77,6 @@ def get_card_kingdom_pricelist():
     return {}
 
 
-def set_default_data():
-    return pd.DataFrame(
-        [
-            {
-                "Name": "Counterspell",
-                "Qtty": 1,
-                "CK": 5.99,
-                "CS": 0.00,
-                "MM": 0.00,
-                "Ago": 0.00,
-            },
-            {
-                "Name": "Dark Ritual",
-                "Qtty": 1,
-                "CK": 0.00,
-                "CS": 0.00,
-                "MM": 3.99,
-                "Ago": 0.00,
-            },
-            {
-                "Name": "Disenchant",
-                "Qtty": 4,
-                "CK": 0.00,
-                "CS": 0.35,
-                "MM": 0.00,
-                "Ago": 0.49,
-            },
-        ]
-    )
-
-
 def sidebar_file_loader():
     if "data_file_loaded" not in st.session_state:
         st.session_state.data_file_loaded = False
@@ -143,8 +112,7 @@ def sidebar_file_loader():
                 st.session_state.data = loaded_df
                 st.session_state.data_file_loaded = True
 
-                if "base_editor_key" in st.session_state:
-                    st.session_state.base_editor_key += 1
+                st.session_state.base_editor_key += 1
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Error reading CSV file: {e}")
@@ -153,8 +121,7 @@ def sidebar_file_loader():
 
         if st.sidebar.button("Load Another File", use_container_width=True):
             st.session_state.data_file_loaded = False
-            if "base_editor_key" in st.session_state:
-                st.session_state.base_editor_key += 1
+            st.session_state.base_editor_key += 1
             st.rerun()
 
 
@@ -166,6 +133,7 @@ def sidebar_file_saver(current_df):
             data=csv_data,
             file_name="automagic_calculator.csv",
             mime="text/csv",
+            icon=":material/download:",
             use_container_width=True,
         )
     except Exception as e:

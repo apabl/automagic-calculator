@@ -212,12 +212,11 @@ if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
 if "data" not in st.session_state:
-    # Seed the table with 5 random cards from the pricelist instead of a fixed
-    # default dataset, so there's always something on screen without hardcoding it.
+    # Seed the table with 3 random cards from the pricelist.
     if st.session_state.ck_prices:
         sample_names = random.sample(
             list(st.session_state.ck_prices.keys()),
-            k=min(4, len(st.session_state.ck_prices)),
+            k=min(3, len(st.session_state.ck_prices)),
         )
         seed_rows = [build_row_from_ck(name) for name in sample_names]
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
@@ -251,8 +250,7 @@ st.sidebar.header("Data Management")
 
 sidebar_file_loader()
 
-# Covers app startup & any file load — just keeps the column shape consistent,
-# no API/Edition re-lookup needed anymore.
+# Covers app startup & any file load.
 st.session_state.data = ensure_columns(st.session_state.data)
 
 
@@ -269,8 +267,7 @@ def main_content():
 
     # num_rows="fixed" (the default) — adding/removing rows is handled by the
     # controls below instead, so editing a price cell here only patches that one
-    # cell in place rather than forcing the whole grid to remount. Name/API/Edition
-    # are disabled since cards only enter the table via add_card().
+    # cell in place rather than forcing the whole grid to remount.
     st.data_editor(
         upper_display_df,
         num_rows="fixed",
@@ -300,7 +297,6 @@ def main_content():
         },
     )
 
-    # Add / remove cards — autocomplete selectbox powered by downloaded ck_prices keys
     add_col, remove_col = st.columns([1, 2])
 
     with add_col:
@@ -315,16 +311,11 @@ def main_content():
             key="new_card_name",
             placeholder="Search card name...",
         )
-        st.button("➕ Add card", on_click=add_card)
-
+        st.button("Add card", icon=":material/add:", on_click=add_card)
     with remove_col:
-        card_names = (
-            st.session_state.data["Name"].dropna().tolist()
-            if "Name" in st.session_state.data.columns
-            else []
-        )
+        card_names = st.session_state.data["Name"].dropna().tolist()
         st.multiselect("Remove cards", options=card_names, key="cards_to_remove")
-        st.button("🗑 Remove selected", on_click=remove_cards)
+        st.button("Remove selected", icon=":material/delete:", on_click=remove_cards)
 
     # Use the synchronized dataframe directly
     input_df = st.session_state.data
