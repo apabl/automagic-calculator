@@ -212,13 +212,18 @@ if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
 if "data" not in st.session_state:
-    # Seed the table with 3 random cards from the pricelist.
+    # Pull 10 random cards, seed the table with the top 3
     if st.session_state.ck_prices:
         sample_names = random.sample(
             list(st.session_state.ck_prices.keys()),
-            k=min(3, len(st.session_state.ck_prices)),
+            k=min(10, len(st.session_state.ck_prices)),
         )
-        seed_rows = [build_row_from_ck(name) for name in sample_names]
+        sample_names.sort(
+            key=lambda name: st.session_state.ck_prices[name].get("price", 0),
+            reverse=True,
+        )
+        seed_names = sample_names[:3]
+        seed_rows = [build_row_from_ck(name) for name in seed_names]
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
     else:
         st.session_state.data = ensure_columns(pd.DataFrame())
@@ -273,6 +278,7 @@ def main_content():
         num_rows="fixed",
         width="stretch",
         height="content",
+        hide_index=True,
         key=f"base_editor_{st.session_state.base_editor_key}",
         on_change=update_base_editor,
         disabled=["Name", "API", "Edition"],
@@ -312,6 +318,7 @@ def main_content():
             placeholder="Search card name...",
         )
         st.button("Add card", icon=":material/add:", on_click=add_card)
+
     with remove_col:
         card_names = st.session_state.data["Name"].dropna().tolist()
         st.multiselect("Remove cards", options=card_names, key="cards_to_remove")
