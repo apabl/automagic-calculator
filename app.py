@@ -13,6 +13,7 @@ from utils import (
 # Always call set_page_config first
 st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
+
 CANONICAL_COLS = ["Name", "API", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
 
 
@@ -42,13 +43,7 @@ def normalize_df(df):
 
 
 def ensure_columns(df):
-    """Guarantee the canonical columns exist, in order.
-
-    No API/Edition lookups happen here anymore — cards can now only be added via
-    add_card(), which pulls price/edition straight from ck_prices at add-time. So
-    there's nothing left to keep in sync on every edit; this just keeps the shape
-    of the dataframe consistent.
-    """
+    """Guarantee the canonical columns exist, in order."""
     new_df = df.copy()
 
     for col in CANONICAL_COLS:
@@ -59,13 +54,9 @@ def ensure_columns(df):
 
 
 def build_row_from_ck(card_name):
-    """Look up a card's price/edition in ck_prices and build a single-row dict.
-
-    ck_prices keys use the API's original casing (no .lower()/.title() round-trip,
-    which used to mangle names like "Urza's Saga" into "Urza'S Saga"), so the
-    lookup here is a direct, exact match.
-    """
+    """Look up a card's price/edition in ck_prices and build a single-row dict."""
     card_data = st.session_state.ck_prices.get(card_name, {})
+
     return {
         "Name": card_name,
         "API": normalize_value(card_data.get("price")),
@@ -75,12 +66,7 @@ def build_row_from_ck(card_name):
 
 
 def update_base_editor():
-    """Apply cell edits from the fixed-row top grid.
-
-    Name/API/Edition are disabled here — cards only enter the table through
-    add_card() — so this only ever touches CK/CS/MM/Ago/Qtty cells, one at a time,
-    which is what keeps it flash-free.
-    """
+    """Apply cell edits from the base grid smoothly without flashing."""
     editor_key = f"base_editor_{st.session_state.base_editor_key}"
     editor_state = st.session_state.get(editor_key, {"edited_rows": {}})
 
@@ -88,8 +74,9 @@ def update_base_editor():
 
     for row_idx, changes in editor_state.get("edited_rows", {}).items():
         row_idx = int(row_idx)
+
         for col, value in changes.items():
-            if row_idx in df.index:
+            if col != "Delete" and row_idx in df.index:
                 df.at[row_idx, col] = value
 
     st.session_state.data = df
@@ -102,6 +89,7 @@ def update_qtty_editor():
 
     for row_idx, changes in editor_state.get("edited_rows", {}).items():
         row_idx = int(row_idx)
+
         for col, value in changes.items():
             if row_idx in df.index and col == "Qtty":
                 df.at[row_idx, col] = value
@@ -109,34 +97,26 @@ def update_qtty_editor():
     st.session_state.data = df
 
 
-def add_card():
-    """Append a card picked from the ck_prices-backed dropdown. Price/Edition come
-    straight from ck_prices — no separate sync step needed since this is the only
-    place a card's Name ever gets set."""
+def add_card_from_dropdown():
+    """Immediately append a card picked from the dropdown and reset selection."""
     new_name = st.session_state.get("new_card_name", "")
+
     if not new_name:
         return
 
     new_row = pd.DataFrame([build_row_from_ck(new_name)])
-    df = pd.concat([st.session_state.data, new_row], ignore_index=True)
+
+    df = pd.concat(
+        [st.session_state.data, new_row],
+        ignore_index=True,
+    )
 
     st.session_state.data = ensure_columns(df)
+
+    # Force the upper editor to rebuild with the newly added row.
     st.session_state.base_editor_key += 1
+
     st.session_state.new_card_name = ""
-
-
-def remove_cards():
-    """Remove the cards selected in the 'Remove cards' multiselect."""
-    to_remove = st.session_state.get("cards_to_remove", [])
-    if not to_remove:
-        return
-
-    df = st.session_state.data
-    df = df[~df["Name"].isin(to_remove)].reset_index(drop=True)
-
-    st.session_state.data = ensure_columns(df)
-    st.session_state.base_editor_key += 1
-    st.session_state.cards_to_remove = []
 
 
 def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
@@ -157,6 +137,7 @@ def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
         fee = qtty * price * 0.05
 
     base = (price * qtty) + fee
+
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
 
 
@@ -191,15 +172,20 @@ def calculate_ago(name, qtty, ago_price, dolar_blue):
 def calculate_subtotal(edited_df, col_name):
     if "✓" in edited_df.columns:
         return (
-            pd.to_numeric(edited_df.loc[edited_df["✓"], col_name], errors="coerce")
+            pd.to_numeric(
+                edited_df.loc[edited_df["✓"], col_name],
+                errors="coerce",
+            )
             .fillna(0)
             .sum()
         )
+
     return 0
 
 
 # Load the external stylesheet
 load_local_css("styles.css")
+
 
 # Data initialization
 CK_MARGIN = 20.0
@@ -207,28 +193,48 @@ CS_MARGIN = 13.0
 
 dolar_blue = get_dolar_blue_venta()
 
+
 if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
     with st.spinner("Fetching Card Kingdom pricelist..."):
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
+        st.session_state.sorted_card_options = (
+            sorted(st.session_state.ck_prices.keys())
+            if st.session_state.ck_prices
+            else []
+        )
+
+
+if "sorted_card_options" not in st.session_state:
+    st.session_state.sorted_card_options = (
+        sorted(st.session_state.ck_prices.keys()) if st.session_state.ck_prices else []
+    )
+
+
 if "data" not in st.session_state:
-    # Pull 10 random cards, seed the table with the top 3
     if st.session_state.ck_prices:
         sample_names = random.sample(
             list(st.session_state.ck_prices.keys()),
             k=min(10, len(st.session_state.ck_prices)),
         )
+
         sample_names.sort(
             key=lambda name: st.session_state.ck_prices[name].get("price", 0),
             reverse=True,
         )
+
         seed_names = sample_names[:3]
+
         seed_rows = [build_row_from_ck(name) for name in seed_names]
+
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
+
     else:
         st.session_state.data = ensure_columns(pd.DataFrame())
+
 else:
     st.session_state.data = ensure_columns(st.session_state.data)
+
 
 if "base_editor_key" not in st.session_state:
     st.session_state.base_editor_key = 0
@@ -238,41 +244,61 @@ if "base_editor_key" not in st.session_state:
 st.sidebar.header("Variables")
 st.sidebar.write("---")
 
+
 MM_MARGIN = st.sidebar.number_input(
-    "MM Margin (%)", min_value=0.0, value=5.0, step=1.0, format="%.1f"
+    "MM Margin (%)",
+    min_value=0.0,
+    value=5.0,
+    step=1.0,
+    format="%.1f",
 )
+
+
 MM_FIXED_VALUE = st.sidebar.number_input(
-    "MM Fixed Value ($ ARS)", min_value=0, value=700, step=100
+    "MM Fixed Value ($ ARS)",
+    min_value=0,
+    value=700,
+    step=100,
 )
+
+
 st.sidebar.write("---")
 
+
 agora_dolar_ref = st.sidebar.number_input(
-    "Agora Dolar Reference ($ ARS)", min_value=0, value=int(dolar_blue), step=10
+    "Agora Dolar Reference ($ ARS)",
+    min_value=0,
+    value=int(dolar_blue),
+    step=10,
 )
+
+
 st.sidebar.write("---")
+
 
 st.sidebar.header("Data Management")
 
 sidebar_file_loader()
 
-# Covers app startup & any file load.
+
 st.session_state.data = ensure_columns(st.session_state.data)
 
 
 @st.fragment
 def main_content():
-    # Main Page
     st.title("Automagic Calculator")
     st.write("---")
 
-    # 1. Base Input Grid (Qtty column excluded)
     st.subheader("1. Enter Base Values")
 
-    upper_display_df = st.session_state.data.drop(columns=["Qtty"], errors="ignore")
+    # Prepare display dataframe and add a button column for row deletion.
+    upper_display_df = st.session_state.data.drop(
+        columns=["Qtty"],
+        errors="ignore",
+    ).copy()
 
-    # num_rows="fixed" (the default) — adding/removing rows is handled by the
-    # controls below instead, so editing a price cell here only patches that one
-    # cell in place rather than forcing the whole grid to remount.
+    upper_display_df["Delete"] = "❌"
+
     st.data_editor(
         upper_display_df,
         num_rows="fixed",
@@ -281,58 +307,105 @@ def main_content():
         hide_index=True,
         key=f"base_editor_{st.session_state.base_editor_key}",
         on_change=update_base_editor,
-        disabled=["Name", "API", "Edition"],
+        disabled=[
+            "Name",
+            "API",
+            "Edition",
+            "Delete",
+        ],
         column_config={
-            "Name": st.column_config.TextColumn("Card Name", width="medium"),
+            "Name": st.column_config.TextColumn(
+                "Card Name",
+                width="medium",
+            ),
             "API": st.column_config.NumberColumn(
-                "🔒    Cheapest Price", format="%.2f", step=0.01, width="small"
+                "🔒    Cheapest Price",
+                format="%.2f",
+                step=0.01,
+                width="small",
             ),
             "Edition": st.column_config.TextColumn(
-                "🔒    Cheapest Edition", width="small"
+                "🔒    Cheapest Edition",
+                width="small",
             ),
             "CK": st.column_config.NumberColumn(
-                "Card Kingdom", format="%.2f", step=0.01
+                "Card Kingdom",
+                format="%.2f",
+                step=0.01,
             ),
             "CS": st.column_config.NumberColumn(
-                "CoolStuffInc", format="%.2f", step=0.01
+                "CoolStuffInc",
+                format="%.2f",
+                step=0.01,
             ),
             "MM": st.column_config.NumberColumn(
-                "Multi Margin", format="%.2f", step=0.01
+                "Multi Margin",
+                format="%.2f",
+                step=0.01,
             ),
-            "Ago": st.column_config.NumberColumn("Agora", format="%.2f", step=0.01),
+            "Ago": st.column_config.NumberColumn(
+                "Agora",
+                format="%.2f",
+                step=0.01,
+            ),
+            "Delete": st.column_config.ButtonColumn(
+                "Remove",
+                help="Delete row",
+                type="tertiary",
+                key="delete_btn_click",
+            ),
         },
     )
 
-    add_col, remove_col = st.columns([1, 2])
+    # Handle row deletion when a delete button is clicked.
+    delete_click = st.session_state.get("delete_btn_click")
 
-    with add_col:
-        card_options = (
-            sorted(st.session_state.ck_prices.keys())
-            if st.session_state.ck_prices
-            else []
+    if delete_click is not None:
+        row_to_delete = (
+            delete_click.get("row")
+            if isinstance(delete_click, dict)
+            else getattr(delete_click, "row", None)
         )
-        st.selectbox(
-            "Add card",
-            options=[""] + card_options,
-            key="new_card_name",
-            placeholder="Search card name...",
-        )
-        st.button("Add card", icon=":material/add:", on_click=add_card)
 
-    with remove_col:
-        card_names = st.session_state.data["Name"].dropna().tolist()
-        st.multiselect("Remove cards", options=card_names, key="cards_to_remove")
-        st.button("Remove selected", icon=":material/delete:", on_click=remove_cards)
+        if row_to_delete is not None and row_to_delete in st.session_state.data.index:
+            st.session_state.data = st.session_state.data.drop(
+                index=row_to_delete
+            ).reset_index(drop=True)
 
-    # Use the synchronized dataframe directly
+            st.session_state.base_editor_key += 1
+
+            st.rerun()
+
+    # Card selector.
+    #
+    # IMPORTANT:
+    # The card list is still pre-sorted, but prefix filtering avoids
+    # Streamlit's more expensive fuzzy matching.
+    st.selectbox(
+        None,
+        options=[
+            "",
+            *st.session_state.sorted_card_options,
+        ],
+        key="new_card_name",
+        width=300,
+        placeholder="Add card...",
+        filter_mode="prefix",
+        on_change=add_card_from_dropdown,
+    )
+
     input_df = st.session_state.data
 
-    # File saver uses the synchronized DataFrame
     sidebar_file_saver(input_df)
+
     st.sidebar.write("---")
 
-    # 2. Process Calculations using synchronized input
-    calc_df = pd.DataFrame()
+    # ------------------------------------------------------------
+    # Calculations
+    # ------------------------------------------------------------
+
+    calc_df = pd.DataFrame(index=input_df.index)
+
     calc_df["Name"] = input_df["Name"]
     calc_df["Qtty"] = input_df["Qtty"]
 
@@ -380,14 +453,41 @@ def main_content():
 
     calc_df = normalize_df(calc_df)
 
-    # 3. Output Grids with Column Metrics
+    # ------------------------------------------------------------
+    # Final Prices
+    # ------------------------------------------------------------
+
     st.subheader("2. Final Prices")
 
     df_base = calc_df[["Name", "Qtty"]].copy()
-    df_ck = pd.DataFrame({"✓": False, "CK F": calc_df["CK F"]})
-    df_cs = pd.DataFrame({"✓": False, "CS F": calc_df["CS F"]})
-    df_mm = pd.DataFrame({"✓": False, "MM F": calc_df["MM F"]})
-    df_ago = pd.DataFrame({"✓": False, "Ago F": calc_df["Ago F"]})
+
+    df_ck = pd.DataFrame(
+        {
+            "✓": False,
+            "CK F": calc_df["CK F"],
+        }
+    )
+
+    df_cs = pd.DataFrame(
+        {
+            "✓": False,
+            "CS F": calc_df["CS F"],
+        }
+    )
+
+    df_mm = pd.DataFrame(
+        {
+            "✓": False,
+            "MM F": calc_df["MM F"],
+        }
+    )
+
+    df_ago = pd.DataFrame(
+        {
+            "✓": False,
+            "Ago F": calc_df["Ago F"],
+        }
+    )
 
     cols = st.columns([2, 1, 1, 1, 1])
 
@@ -399,11 +499,18 @@ def main_content():
             hide_index=True,
             key="grid_base",
             on_change=update_qtty_editor,
-            disabled=["Name"],  # Qtty is now editable here
+            disabled=["Name"],
             column_config={
-                "Name": st.column_config.TextColumn("Card Name", width="medium"),
+                "Name": st.column_config.TextColumn(
+                    "Card Name",
+                    width="medium",
+                ),
                 "Qtty": st.column_config.NumberColumn(
-                    "Qtty", format="%d", step=1, min_value=0, width="small"
+                    "Qtty",
+                    format="%d",
+                    step=1,
+                    min_value=0,
+                    width="small",
                 ),
             },
         )
@@ -417,11 +524,21 @@ def main_content():
             key="grid_ck",
             disabled=["CK F"],
             column_config={
-                "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "CK F": st.column_config.NumberColumn("Card Kingdom", format="$ %d"),
+                "✓": st.column_config.CheckboxColumn(
+                    "✓",
+                    default=False,
+                ),
+                "CK F": st.column_config.NumberColumn(
+                    "Card Kingdom",
+                    format="$ %d",
+                ),
             },
         )
-        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ck, 'CK F')):,}")
+
+        st.metric(
+            "Subtotal",
+            f"$ {int(calculate_subtotal(edited_ck, 'CK F')):,}",
+        )
 
     with cols[2]:
         edited_cs = st.data_editor(
@@ -432,11 +549,21 @@ def main_content():
             key="grid_cs",
             disabled=["CS F"],
             column_config={
-                "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "CS F": st.column_config.NumberColumn("CoolStuffInc", format="$ %d"),
+                "✓": st.column_config.CheckboxColumn(
+                    "✓",
+                    default=False,
+                ),
+                "CS F": st.column_config.NumberColumn(
+                    "CoolStuffInc",
+                    format="$ %d",
+                ),
             },
         )
-        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_cs, 'CS F')):,}")
+
+        st.metric(
+            "Subtotal",
+            f"$ {int(calculate_subtotal(edited_cs, 'CS F')):,}",
+        )
 
     with cols[3]:
         edited_mm = st.data_editor(
@@ -447,11 +574,21 @@ def main_content():
             key="grid_mm",
             disabled=["MM F"],
             column_config={
-                "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "MM F": st.column_config.NumberColumn("Multi Margin", format="$ %d"),
+                "✓": st.column_config.CheckboxColumn(
+                    "✓",
+                    default=False,
+                ),
+                "MM F": st.column_config.NumberColumn(
+                    "Multi Margin",
+                    format="$ %d",
+                ),
             },
         )
-        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_mm, 'MM F')):,}")
+
+        st.metric(
+            "Subtotal",
+            f"$ {int(calculate_subtotal(edited_mm, 'MM F')):,}",
+        )
 
     with cols[4]:
         edited_ago = st.data_editor(
@@ -462,16 +599,26 @@ def main_content():
             key="grid_ago",
             disabled=["Ago F"],
             column_config={
-                "✓": st.column_config.CheckboxColumn("✓", default=False),
-                "Ago F": st.column_config.NumberColumn("Agora", format="$ %d"),
+                "✓": st.column_config.CheckboxColumn(
+                    "✓",
+                    default=False,
+                ),
+                "Ago F": st.column_config.NumberColumn(
+                    "Agora",
+                    format="$ %d",
+                ),
             },
         )
-        st.metric("Subtotal", f"$ {int(calculate_subtotal(edited_ago, 'Ago F')):,}")
+
+        st.metric(
+            "Subtotal",
+            f"$ {int(calculate_subtotal(edited_ago, 'Ago F')):,}",
+        )
 
     st.write(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
-    # F.A.Q. SECTION
     st.write("---")
+
     with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):
         st.markdown(load_faq("faq.md"))
 
