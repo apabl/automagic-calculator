@@ -76,7 +76,7 @@ def update_base_editor():
         row_idx = int(row_idx)
 
         for col, value in changes.items():
-            if col != "Delete" and row_idx in df.index:
+            if row_idx in df.index:
                 df.at[row_idx, col] = value
 
     st.session_state.data = df
@@ -169,18 +169,24 @@ def calculate_ago(name, qtty, ago_price, dolar_blue):
     return int(round(qtty * ago_price * dolar_blue))
 
 
-def calculate_subtotal(edited_df, col_name):
-    if "✓" in edited_df.columns:
-        return (
-            pd.to_numeric(
-                edited_df.loc[edited_df["✓"], col_name],
-                errors="coerce",
-            )
-            .fillna(0)
-            .sum()
-        )
+def calculate_checked_totals(edited_df, qtty_series, col_name):
+    """Sum both the price column and the Qtty for rows that are checked (✓)."""
+    if "✓" not in edited_df.columns:
+        return 0, 0
 
-    return 0
+    mask = edited_df["✓"]
+
+    price_total = (
+        pd.to_numeric(edited_df.loc[mask, col_name], errors="coerce").fillna(0).sum()
+    )
+
+    qtty_total = pd.to_numeric(qtty_series.loc[mask], errors="coerce").fillna(0).sum()
+
+    return price_total, qtty_total
+
+
+def card_count(count):
+    return f"{int(count)} card" if int(count) == 1 else f"{int(count)} cards"
 
 
 # Load the external stylesheet
@@ -291,71 +297,93 @@ def main_content():
 
     st.subheader("1. Enter Base Values")
 
-    # Prepare display dataframe and add a button column for row deletion.
+    # Prepare display dataframe (delete buttons live in their own grid below,
+    # kept separate so editing a price cell here never remounts alongside an
+    # interactive ButtonColumn).
     upper_display_df = st.session_state.data.drop(
         columns=["Qtty"],
         errors="ignore",
     ).copy()
 
-    upper_display_df["Delete"] = "❌"
+    main_col, delete_col = st.columns([10, 1], gap="xsmall")
 
-    st.data_editor(
-        upper_display_df,
-        num_rows="fixed",
-        width="stretch",
-        height="content",
-        hide_index=True,
-        key=f"base_editor_{st.session_state.base_editor_key}",
-        on_change=update_base_editor,
-        disabled=[
-            "Name",
-            "API",
-            "Edition",
-            "Delete",
-        ],
-        column_config={
-            "Name": st.column_config.TextColumn(
-                "Card Name",
-                width="medium",
-            ),
-            "API": st.column_config.NumberColumn(
-                "🔒    Cheapest Price",
-                format="%.2f",
-                step=0.01,
-                width="small",
-            ),
-            "Edition": st.column_config.TextColumn(
-                "🔒    Cheapest Edition",
-                width="small",
-            ),
-            "CK": st.column_config.NumberColumn(
-                "Card Kingdom",
-                format="%.2f",
-                step=0.01,
-            ),
-            "CS": st.column_config.NumberColumn(
-                "CoolStuffInc",
-                format="%.2f",
-                step=0.01,
-            ),
-            "MM": st.column_config.NumberColumn(
-                "Multi Margin",
-                format="%.2f",
-                step=0.01,
-            ),
-            "Ago": st.column_config.NumberColumn(
-                "Agora",
-                format="%.2f",
-                step=0.01,
-            ),
-            "Delete": st.column_config.ButtonColumn(
-                "Remove",
-                help="Delete row",
-                type="tertiary",
-                key="delete_btn_click",
-            ),
-        },
-    )
+    with main_col:
+        st.data_editor(
+            upper_display_df,
+            num_rows="fixed",
+            width="stretch",
+            height="content",
+            hide_index=True,
+            key=f"base_editor_{st.session_state.base_editor_key}",
+            on_change=update_base_editor,
+            disabled=[
+                "Name",
+                "API",
+                "Edition",
+            ],
+            column_config={
+                "Name": st.column_config.TextColumn(
+                    "Card Name",
+                    width="medium",
+                ),
+                "API": st.column_config.NumberColumn(
+                    "🔒    Cheapest Price",
+                    format="%.2f",
+                    step=0.01,
+                    width="small",
+                ),
+                "Edition": st.column_config.TextColumn(
+                    "🔒    Cheapest Edition",
+                    width="small",
+                ),
+                "CK": st.column_config.NumberColumn(
+                    "Card Kingdom",
+                    format="%.2f",
+                    step=0.01,
+                ),
+                "CS": st.column_config.NumberColumn(
+                    "CoolStuffInc",
+                    format="%.2f",
+                    step=0.01,
+                ),
+                "MM": st.column_config.NumberColumn(
+                    "Multi Margin",
+                    format="%.2f",
+                    step=0.01,
+                ),
+                "Ago": st.column_config.NumberColumn(
+                    "Agora",
+                    format="%.2f",
+                    step=0.01,
+                ),
+            },
+        )
+
+    with delete_col:
+        # Native Material trash icon (":material/delete:") — ButtonColumn
+        # renders its cell values through the same Markdown/icon shortcode
+        # support as widget labels, so this matches the icon already used
+        # on the "Remove selected" button elsewhere in the app. st.dataframe
+        # (not data_editor) is enough here since ButtonColumn is inherently
+        # read-only and there's no other editable state in this grid.
+        delete_df = pd.DataFrame(
+            {"Delete": [":material/delete:"] * len(st.session_state.data)}
+        )
+
+        st.dataframe(
+            delete_df,
+            width="content",
+            height="content",
+            hide_index=True,
+            column_config={
+                "Delete": st.column_config.ButtonColumn(
+                    "Remove",
+                    help="Delete row",
+                    type="tertiary",
+                    key="delete_btn_click",
+                ),
+            },
+        )
 
     # Handle row deletion when a delete button is clicked.
     delete_click = st.session_state.get("delete_btn_click")
@@ -395,14 +423,10 @@ def main_content():
     )
 
     input_df = st.session_state.data
-
     sidebar_file_saver(input_df)
-
     st.sidebar.write("---")
 
-    # ------------------------------------------------------------
     # Calculations
-    # ------------------------------------------------------------
 
     calc_df = pd.DataFrame(index=input_df.index)
 
@@ -453,12 +477,9 @@ def main_content():
 
     calc_df = normalize_df(calc_df)
 
-    # ------------------------------------------------------------
     # Final Prices
-    # ------------------------------------------------------------
 
     st.subheader("2. Final Prices")
-
     df_base = calc_df[["Name", "Qtty"]].copy()
 
     df_ck = pd.DataFrame(
@@ -489,12 +510,11 @@ def main_content():
         }
     )
 
-    cols = st.columns([2, 1, 1, 1, 1])
+    cols = st.columns([1.3, 1, 1, 1, 1], gap="xsmall")
 
     with cols[0]:
         st.data_editor(
             df_base,
-            width="stretch",
             height="content",
             hide_index=True,
             key="grid_base",
@@ -535,10 +555,15 @@ def main_content():
             },
         )
 
+        ck_subtotal, ck_count = calculate_checked_totals(
+            edited_ck, calc_df["Qtty"], "CK F"
+        )
+
         st.metric(
             "Subtotal",
-            f"$ {int(calculate_subtotal(edited_ck, 'CK F')):,}",
+            f"$ {int(ck_subtotal):,}",
         )
+        st.write(card_count(ck_count))
 
     with cols[2]:
         edited_cs = st.data_editor(
@@ -560,10 +585,15 @@ def main_content():
             },
         )
 
+        cs_subtotal, cs_count = calculate_checked_totals(
+            edited_cs, calc_df["Qtty"], "CS F"
+        )
+
         st.metric(
             "Subtotal",
-            f"$ {int(calculate_subtotal(edited_cs, 'CS F')):,}",
+            f"$ {int(cs_subtotal):,}",
         )
+        st.write(card_count(cs_count))
 
     with cols[3]:
         edited_mm = st.data_editor(
@@ -585,10 +615,15 @@ def main_content():
             },
         )
 
+        mm_subtotal, mm_count = calculate_checked_totals(
+            edited_mm, calc_df["Qtty"], "MM F"
+        )
+
         st.metric(
             "Subtotal",
-            f"$ {int(calculate_subtotal(edited_mm, 'MM F')):,}",
+            f"$ {int(mm_subtotal):,}",
         )
+        st.write(card_count(mm_count))
 
     with cols[4]:
         edited_ago = st.data_editor(
@@ -610,13 +645,17 @@ def main_content():
             },
         )
 
-        st.metric(
-            "Subtotal",
-            f"$ {int(calculate_subtotal(edited_ago, 'Ago F')):,}",
+        ago_subtotal, ago_count = calculate_checked_totals(
+            edited_ago, calc_df["Qtty"], "Ago F"
         )
 
-    st.write(f"Dólar Blue: **$ {dolar_blue:.0f}**")
+        st.metric(
+            "Subtotal",
+            f"$ {int(ago_subtotal):,}",
+        )
+        st.write(card_count(ago_count))
 
+    st.write(f"Dólar Blue: **$ {dolar_blue:.0f}**")
     st.write("---")
 
     with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):

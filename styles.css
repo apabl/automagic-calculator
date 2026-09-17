@@ -59,7 +59,6 @@ hr {
     background-color: var(--accent);
     color: var(--on-accent);
     border: 1px solid transparent;
-    /* reserves space so hover doesn't shift size */
 }
 
 .stButton>button:hover,
@@ -84,4 +83,13 @@ div[data-baseweb="tooltip"] {
     color: var(--text-header);
     border: 1px solid var(--bg-sidebar);
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-testid="stMetric"] {
+    margin-bottom: -20px;
+}
+
+/* "Add card" selectbox upward closer to the table above it */
+[data-testid="stSelectbox"] {
+    margin-top: -40px;
 }
