@@ -11,7 +11,6 @@ def load_local_css(file_name):
 
 
 def load_faq(file_name="faq.md"):
-    """Loads the F.A.Q. content from a markdown file."""
     if os.path.exists(file_name):
         with open(file_name, "r", encoding="utf-8") as f:
             return f.read()
@@ -33,8 +32,7 @@ def get_dolar_blue_venta():
 @st.cache_data(ttl=21600)  # 6 hours
 def get_card_kingdom_pricelist():
     """Fetches and caches the Card Kingdom pricelist, finding the cheapest
-    non-foil (or fallback foil) price, expansion name, and full SKU
-    across all versions/printings.
+    non-foil price and its expansion name
     """
     try:
         url = "https://api.cardkingdom.com/api/v2/pricelist"
@@ -45,9 +43,12 @@ def get_card_kingdom_pricelist():
 
             for item in data:
                 name = item.get("name", "").strip()
+
+                if "token" in name.lower():
+                    continue
+
                 is_foil = item.get("is_foil", False)
                 edition = item.get("edition", "").strip()
-                sku = item.get("sku", "").strip()
 
                 try:
                     price = float(item.get("price_retail", 0.0))
@@ -55,7 +56,7 @@ def get_card_kingdom_pricelist():
                     price = 0.0
 
                 if name and price > 0:
-                    card_info = {"price": price, "edition": edition, "sku": sku}
+                    card_info = {"price": price, "edition": edition}
 
                     if name not in ck_dict:
                         ck_dict[name] = {"info": card_info, "is_foil": is_foil}

@@ -288,7 +288,7 @@ def main_content():
                 "🔒    Cheapest Price", format="%.2f", step=0.01, width="small"
             ),
             "Edition": st.column_config.TextColumn(
-                "🔒    Cheapest Edition", width="medium"
+                "🔒    Cheapest Edition", width="small"
             ),
             "CK": st.column_config.NumberColumn(
                 "Card Kingdom", format="%.2f", step=0.01
