@@ -33,7 +33,7 @@ def normalize_value(value):
 
 
 def normalize_df(df):
-    """Normalize blanks, NaN and zero-like values across the dataframe."""
+    """Normalize blanks, NaN and zero-like values."""
     new_df = df.copy()
 
     for col in new_df.columns:
@@ -105,7 +105,6 @@ def add_card_from_dropdown():
         return
 
     new_row = pd.DataFrame([build_row_from_ck(new_name)])
-
     df = pd.concat(
         [st.session_state.data, new_row],
         ignore_index=True,
@@ -115,7 +114,6 @@ def add_card_from_dropdown():
 
     # Force the upper editor to rebuild with the newly added row.
     st.session_state.base_editor_key += 1
-
     st.session_state.new_card_name = ""
 
 
@@ -137,7 +135,6 @@ def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
         fee = qtty * price * 0.05
 
     base = (price * qtty) + fee
-
     return int(round(base * (1 + added_margin / 100) * dolar_blue))
 
 
@@ -151,9 +148,8 @@ def calculate_mm(name, qtty, mm_price, dolar_blue):
     if qtty == 0 or mm_price == 0:
         return None
 
-    return int(
-        round(qtty * (mm_price * dolar_blue * (1 + MM_MARGIN / 100) + MM_FIXED_VALUE))
-    )
+    price = mm_price * dolar_blue * (1 + MM_MARGIN / 100)
+    return int(round(qtty * (price + MM_FIXED_VALUE)))
 
 
 def calculate_ago(name, qtty, ago_price, dolar_blue):
@@ -230,7 +226,6 @@ if "data" not in st.session_state:
         )
 
         seed_names = sample_names[:3]
-
         seed_rows = [build_row_from_ck(name) for name in seed_names]
 
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
@@ -259,7 +254,6 @@ MM_MARGIN = st.sidebar.number_input(
     format="%.1f",
 )
 
-
 MM_FIXED_VALUE = st.sidebar.number_input(
     "MM Fixed Value ($ ARS)",
     min_value=0,
@@ -267,9 +261,7 @@ MM_FIXED_VALUE = st.sidebar.number_input(
     step=100,
 )
 
-
 st.sidebar.write("---")
-
 
 agora_dolar_ref = st.sidebar.number_input(
     "Agora Dolar Reference ($ ARS)",
@@ -278,9 +270,7 @@ agora_dolar_ref = st.sidebar.number_input(
     step=10,
 )
 
-
 st.sidebar.write("---")
-
 
 st.sidebar.header("Data Management")
 
@@ -297,45 +287,48 @@ def main_content():
 
     st.subheader("1. Enter Base Values")
 
-    # Prepare display dataframe (delete buttons live in their own grid below,
-    # kept separate so editing a price cell here never remounts alongside an
-    # interactive ButtonColumn).
-    upper_display_df = st.session_state.data.drop(
-        columns=["Qtty"],
-        errors="ignore",
-    ).copy()
+    # Split into three independent widgets
+    locked_df = st.session_state.data[["Name", "API", "Edition"]].copy()
+    prices_df = st.session_state.data[["CK", "CS", "MM", "Ago"]].copy()
 
-    main_col, delete_col = st.columns([10, 1], gap="xsmall")
+    locked_col, prices_col, delete_col = st.columns([3, 4, 0.5], gap="xsmall")
 
-    with main_col:
-        st.data_editor(
-            upper_display_df,
-            num_rows="fixed",
+    with locked_col:
+        # Read-only, so st.dataframe is enough — no editor state to manage
+        # and no risk of it remounting when the prices grid is edited.
+        st.dataframe(
+            locked_df,
             width="stretch",
             height="content",
             hide_index=True,
-            key=f"base_editor_{st.session_state.base_editor_key}",
-            on_change=update_base_editor,
-            disabled=[
-                "Name",
-                "API",
-                "Edition",
-            ],
             column_config={
                 "Name": st.column_config.TextColumn(
                     "Card Name",
                     width="medium",
                 ),
                 "API": st.column_config.NumberColumn(
-                    "🔒    Cheapest Price",
+                    "🔒    Cheap Price",
                     format="%.2f",
                     step=0.01,
                     width="small",
                 ),
                 "Edition": st.column_config.TextColumn(
                     "🔒    Cheapest Edition",
-                    width="small",
+                    width="medium",
                 ),
+            },
+        )
+
+    with prices_col:
+        st.data_editor(
+            prices_df,
+            num_rows="fixed",
+            width="stretch",
+            height="content",
+            hide_index=True,
+            key=f"base_editor_{st.session_state.base_editor_key}",
+            on_change=update_base_editor,
+            column_config={
                 "CK": st.column_config.NumberColumn(
                     "Card Kingdom",
                     format="%.2f",
@@ -360,19 +353,14 @@ def main_content():
         )
 
     with delete_col:
-        # Native Material trash icon (":material/delete:") — ButtonColumn
-        # renders its cell values through the same Markdown/icon shortcode
-        # support as widget labels, so this matches the icon already used
-        # on the "Remove selected" button elsewhere in the app. st.dataframe
-        # (not data_editor) is enough here since ButtonColumn is inherently
-        # read-only and there's no other editable state in this grid.
+        # st.dataframe (not data_editor) is enough here since ButtonColumn is
+        # inherently read-only and there's no other editable state in this grid.
         delete_df = pd.DataFrame(
             {"Delete": [":material/delete:"] * len(st.session_state.data)}
         )
 
         st.dataframe(
             delete_df,
-            width="content",
             height="content",
             hide_index=True,
             column_config={
@@ -401,14 +389,9 @@ def main_content():
             ).reset_index(drop=True)
 
             st.session_state.base_editor_key += 1
-
             st.rerun()
 
     # Card selector.
-    #
-    # IMPORTANT:
-    # The card list is still pre-sorted, but prefix filtering avoids
-    # Streamlit's more expensive fuzzy matching.
     st.selectbox(
         None,
         options=[
@@ -427,7 +410,6 @@ def main_content():
     st.sidebar.write("---")
 
     # Calculations
-
     calc_df = pd.DataFrame(index=input_df.index)
 
     calc_df["Name"] = input_df["Name"]
@@ -478,7 +460,6 @@ def main_content():
     calc_df = normalize_df(calc_df)
 
     # Final Prices
-
     st.subheader("2. Final Prices")
     df_base = calc_df[["Name", "Qtty"]].copy()
 
@@ -510,7 +491,7 @@ def main_content():
         }
     )
 
-    cols = st.columns([1.3, 1, 1, 1, 1], gap="xsmall")
+    cols = st.columns([2, 1, 1, 1, 1], gap="xsmall")
 
     with cols[0]:
         st.data_editor(
@@ -523,7 +504,7 @@ def main_content():
             column_config={
                 "Name": st.column_config.TextColumn(
                     "Card Name",
-                    width="medium",
+                    width="large",
                 ),
                 "Qtty": st.column_config.NumberColumn(
                     "Qtty",
