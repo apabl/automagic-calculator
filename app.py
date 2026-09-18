@@ -200,17 +200,9 @@ if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
     with st.spinner("Fetching Card Kingdom pricelist..."):
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
-        st.session_state.sorted_card_options = (
-            sorted(st.session_state.ck_prices.keys())
-            if st.session_state.ck_prices
-            else []
-        )
-
-
-if "sorted_card_options" not in st.session_state:
-    st.session_state.sorted_card_options = (
-        sorted(st.session_state.ck_prices.keys()) if st.session_state.ck_prices else []
-    )
+st.session_state.sorted_card_options = (
+    sorted(st.session_state.ck_prices.keys()) if st.session_state.ck_prices else []
+)
 
 
 if "data" not in st.session_state:
@@ -229,10 +221,8 @@ if "data" not in st.session_state:
         seed_rows = [build_row_from_ck(name) for name in seed_names]
 
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
-
     else:
         st.session_state.data = ensure_columns(pd.DataFrame())
-
 else:
     st.session_state.data = ensure_columns(st.session_state.data)
 
@@ -358,7 +348,6 @@ def main_content():
         delete_df = pd.DataFrame(
             {"Delete": [":material/delete:"] * len(st.session_state.data)}
         )
-
         st.dataframe(
             delete_df,
             height="content",
@@ -382,7 +371,6 @@ def main_content():
             if isinstance(delete_click, dict)
             else getattr(delete_click, "row", None)
         )
-
         if row_to_delete is not None and row_to_delete in st.session_state.data.index:
             st.session_state.data = st.session_state.data.drop(
                 index=row_to_delete
@@ -425,7 +413,6 @@ def main_content():
         ),
         axis=1,
     )
-
     calc_df["CS F"] = input_df.apply(
         lambda row: calculate_diego_tcg(
             row.get("Name", None),
@@ -436,7 +423,6 @@ def main_content():
         ),
         axis=1,
     )
-
     calc_df["MM F"] = input_df.apply(
         lambda row: calculate_mm(
             row.get("Name", None),
@@ -446,7 +432,6 @@ def main_content():
         ),
         axis=1,
     )
-
     calc_df["Ago F"] = input_df.apply(
         lambda row: calculate_ago(
             row.get("Name", None),
@@ -469,21 +454,18 @@ def main_content():
             "CK F": calc_df["CK F"],
         }
     )
-
     df_cs = pd.DataFrame(
         {
             "✓": False,
             "CS F": calc_df["CS F"],
         }
     )
-
     df_mm = pd.DataFrame(
         {
             "✓": False,
             "MM F": calc_df["MM F"],
         }
     )
-
     df_ago = pd.DataFrame(
         {
             "✓": False,
@@ -535,11 +517,9 @@ def main_content():
                 ),
             },
         )
-
         ck_subtotal, ck_count = calculate_checked_totals(
             edited_ck, calc_df["Qtty"], "CK F"
         )
-
         st.metric(
             "Subtotal",
             f"$ {int(ck_subtotal):,}",
@@ -565,11 +545,9 @@ def main_content():
                 ),
             },
         )
-
         cs_subtotal, cs_count = calculate_checked_totals(
             edited_cs, calc_df["Qtty"], "CS F"
         )
-
         st.metric(
             "Subtotal",
             f"$ {int(cs_subtotal):,}",
@@ -595,11 +573,9 @@ def main_content():
                 ),
             },
         )
-
         mm_subtotal, mm_count = calculate_checked_totals(
             edited_mm, calc_df["Qtty"], "MM F"
         )
-
         st.metric(
             "Subtotal",
             f"$ {int(mm_subtotal):,}",
@@ -625,11 +601,9 @@ def main_content():
                 ),
             },
         )
-
         ago_subtotal, ago_count = calculate_checked_totals(
             edited_ago, calc_df["Qtty"], "Ago F"
         )
-
         st.metric(
             "Subtotal",
             f"$ {int(ago_subtotal):,}",
