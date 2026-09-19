@@ -1,6 +1,7 @@
 import random
 import pandas as pd
 import streamlit as st
+from streamlit_searchbox import st_searchbox
 from utils import (
     get_card_kingdom_pricelist,
     get_dolar_blue_venta,
@@ -97,14 +98,12 @@ def update_qtty_editor():
     st.session_state.data = df
 
 
-def add_card_from_dropdown():
-    """Immediately append a card picked from the dropdown and reset selection."""
-    new_name = st.session_state.get("new_card_name", "")
-
-    if not new_name:
+def add_card(card_name):
+    """Append a card selected from the searchbox."""
+    if not card_name:
         return
 
-    new_row = pd.DataFrame([build_row_from_ck(new_name)])
+    new_row = pd.DataFrame([build_row_from_ck(card_name)])
     df = pd.concat(
         [st.session_state.data, new_row],
         ignore_index=True,
@@ -114,7 +113,21 @@ def add_card_from_dropdown():
 
     # Force the upper editor to rebuild with the newly added row.
     st.session_state.base_editor_key += 1
-    st.session_state.new_card_name = ""
+
+
+def search_cards(query: str):
+    """Server-side filter for the searchbox — only the matched subset (capped
+    at 50) is ever sent to the browser."""
+    if len(query) < 2:
+        return []
+
+    query_lower = query.lower()
+
+    return [
+        name
+        for name in st.session_state.sorted_card_options
+        if query_lower in name.lower()
+    ][:50]
 
 
 def calculate_diego_tcg(name, qtty, price, added_margin, dolar_blue):
@@ -200,6 +213,9 @@ if "ck_prices" not in st.session_state or not st.session_state.ck_prices:
     with st.spinner("Fetching Card Kingdom pricelist..."):
         st.session_state.ck_prices = get_card_kingdom_pricelist() or {}
 
+# Always kept in sync with ck_prices — recomputed unconditionally rather than
+# guarded by "not in session_state", so it can never go stale if ck_prices
+# is ever refreshed by another path.
 st.session_state.sorted_card_options = (
     sorted(st.session_state.ck_prices.keys()) if st.session_state.ck_prices else []
 )
@@ -221,8 +237,10 @@ if "data" not in st.session_state:
         seed_rows = [build_row_from_ck(name) for name in seed_names]
 
         st.session_state.data = ensure_columns(pd.DataFrame(seed_rows))
+
     else:
         st.session_state.data = ensure_columns(pd.DataFrame())
+
 else:
     st.session_state.data = ensure_columns(st.session_state.data)
 
@@ -348,6 +366,7 @@ def main_content():
         delete_df = pd.DataFrame(
             {"Delete": [":material/delete:"] * len(st.session_state.data)}
         )
+
         st.dataframe(
             delete_df,
             height="content",
@@ -371,6 +390,7 @@ def main_content():
             if isinstance(delete_click, dict)
             else getattr(delete_click, "row", None)
         )
+
         if row_to_delete is not None and row_to_delete in st.session_state.data.index:
             st.session_state.data = st.session_state.data.drop(
                 index=row_to_delete
@@ -379,19 +399,26 @@ def main_content():
             st.session_state.base_editor_key += 1
             st.rerun()
 
-    # Card selector.
-    st.selectbox(
-        None,
-        options=[
-            "",
-            *st.session_state.sorted_card_options,
-        ],
-        key="new_card_name",
-        width=300,
-        placeholder="Add card...",
-        filter_mode="prefix",
-        on_change=add_card_from_dropdown,
-    )
+    # Card selector — server-side filtered searchbox instead of a selectbox,
+    # so only the small matched subset is sent to the browser per keystroke
+    # rather than the entire pricelist on every render.
+    search_col, _ = st.columns([1, 4])
+
+    with search_col:
+        selected_card = st_searchbox(
+            search_cards,
+            key="card_searchbox",
+            placeholder="Add card...",
+            clear_on_submit=True,
+            rerun_scope="fragment",
+        )
+
+    # Guard against re-adding the same card on a later rerun (e.g. editing a
+    # price cell afterward).
+    if selected_card and selected_card != st.session_state.get("_last_added_card"):
+        st.session_state._last_added_card = selected_card
+        add_card(selected_card)
+        st.rerun(scope="fragment")
 
     input_df = st.session_state.data
     sidebar_file_saver(input_df)
@@ -413,6 +440,7 @@ def main_content():
         ),
         axis=1,
     )
+
     calc_df["CS F"] = input_df.apply(
         lambda row: calculate_diego_tcg(
             row.get("Name", None),
@@ -423,6 +451,7 @@ def main_content():
         ),
         axis=1,
     )
+
     calc_df["MM F"] = input_df.apply(
         lambda row: calculate_mm(
             row.get("Name", None),
@@ -432,6 +461,7 @@ def main_content():
         ),
         axis=1,
     )
+
     calc_df["Ago F"] = input_df.apply(
         lambda row: calculate_ago(
             row.get("Name", None),
@@ -454,18 +484,21 @@ def main_content():
             "CK F": calc_df["CK F"],
         }
     )
+
     df_cs = pd.DataFrame(
         {
             "✓": False,
             "CS F": calc_df["CS F"],
         }
     )
+
     df_mm = pd.DataFrame(
         {
             "✓": False,
             "MM F": calc_df["MM F"],
         }
     )
+
     df_ago = pd.DataFrame(
         {
             "✓": False,
@@ -517,9 +550,11 @@ def main_content():
                 ),
             },
         )
+
         ck_subtotal, ck_count = calculate_checked_totals(
             edited_ck, calc_df["Qtty"], "CK F"
         )
+
         st.metric(
             "Subtotal",
             f"$ {int(ck_subtotal):,}",
@@ -545,9 +580,11 @@ def main_content():
                 ),
             },
         )
+
         cs_subtotal, cs_count = calculate_checked_totals(
             edited_cs, calc_df["Qtty"], "CS F"
         )
+
         st.metric(
             "Subtotal",
             f"$ {int(cs_subtotal):,}",
@@ -573,9 +610,11 @@ def main_content():
                 ),
             },
         )
+
         mm_subtotal, mm_count = calculate_checked_totals(
             edited_mm, calc_df["Qtty"], "MM F"
         )
+
         st.metric(
             "Subtotal",
             f"$ {int(mm_subtotal):,}",
@@ -601,9 +640,11 @@ def main_content():
                 ),
             },
         )
+
         ago_subtotal, ago_count = calculate_checked_totals(
             edited_ago, calc_df["Qtty"], "Ago F"
         )
+
         st.metric(
             "Subtotal",
             f"$ {int(ago_subtotal):,}",

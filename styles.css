@@ -88,8 +88,3 @@ div[data-baseweb="tooltip"] {
 [data-testid="stMetric"] {
     margin-bottom: -20px;
 }
-
-/* "Add card" selectbox upward closer to the table above it */
-[data-testid="stSelectbox"] {
-    margin-top: -40px;
-}
