@@ -131,7 +131,7 @@ def add_card(card_name, printing=None):
 
     st.session_state.data = ensure_columns(df)
 
-    # Force the upper editor to rebuild with the newly added row.
+    # Force the upper editor to rebuild with the newly added row
     st.session_state.base_editor_key += 1
 
 
@@ -245,6 +245,12 @@ def card_count(count):
 # Load the external stylesheet
 load_local_css("styles.css")
 
+st.markdown(
+    ':material/help: <a href="#faq-section" class="faq-header-link" target="_self">F.A.Q.</a>',
+    unsafe_allow_html=True,
+    text_alignment="right",
+)
+
 
 # Data initialization
 CK_MARGIN = 20.0
@@ -297,11 +303,8 @@ if "base_editor_key" not in st.session_state:
     st.session_state.base_editor_key = 0
 
 
-# Sidebar
-st.sidebar.header("Variables")
-st.sidebar.write("---")
-
-
+# Sidebar — everything that CAN live outside the
+# fragment is grouped here in one place
 MM_MARGIN = st.sidebar.number_input(
     "MM Margin (%)",
     min_value=0.0,
@@ -328,9 +331,9 @@ agora_dolar_ref = st.sidebar.number_input(
 
 st.sidebar.write("---")
 
-st.sidebar.header("Data Management")
-
 sidebar_file_loader()
+
+st.sidebar.subheader(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
 
 st.session_state.data = ensure_columns(st.session_state.data)
@@ -447,6 +450,9 @@ def main_content():
             st.rerun(scope="fragment")
 
     input_df = st.session_state.data
+
+    # Sidebar element — kept here (inside the fragment) because it must reflect
+    # input_df *after* an add/remove that happened in this same fragment rerun.
     sidebar_file_saver(input_df)
     st.sidebar.write("---")
 
@@ -714,10 +720,11 @@ def main_content():
         )
         st.write(card_count(ago_count))
 
-    st.write(f"Dólar Blue: **$ {dolar_blue:.0f}**")
     st.write("---")
 
-    with st.expander("❓ Frequently Asked Questions (F.A.Q.)"):
+    # Anchor target for the "FAQ" link injected into the top header bar
+    st.markdown('<div id="faq-section"></div>', unsafe_allow_html=True)
+    with st.expander(":material/help: Frequently Asked Questions (F.A.Q.)"):
         st.markdown(load_faq("faq.md"))
 
 

@@ -51,6 +51,10 @@ hr {
     color: var(--text-header);
 }
 
+[data-testid="stMetric"] {
+    margin-bottom: -20px;
+}
+
 /* Buttons */
 .stButton>button,
 [data-testid="stDownloadButton"]>button,
@@ -85,6 +89,14 @@ div[data-baseweb="tooltip"] {
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-[data-testid="stMetric"] {
-    margin-bottom: -20px;
+/* F.A.Q. link */
+.faq-header-link {
+    color: var(--text-header) !important;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: color 0.15s ease;
+}
+
+.faq-header-link:hover {
+    color: var(--accent);
 }
