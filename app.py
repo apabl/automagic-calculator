@@ -361,7 +361,7 @@ def main_content():
                     width="medium",
                 ),
                 "Edition": st.column_config.TextColumn(
-                    "🔒    Cheapest Edition",
+                    "Edition",
                     width="medium",
                 ),
             },
@@ -582,7 +582,7 @@ def main_content():
             column_config={
                 "Name": st.column_config.TextColumn(
                     "Card Name",
-                    width="large",
+                    width="medium",
                 ),
                 "Qtty": st.column_config.NumberColumn(
                     "Qtty",
