@@ -31,8 +31,9 @@ def get_dolar_blue_venta():
 
 @st.cache_data(ttl=21600)  # 6 hours
 def get_card_kingdom_pricelist():
-    """Fetches and caches the Card Kingdom pricelist, finding the cheapest
-    non-foil price and its expansion name
+    """Fetches and caches the Card Kingdom pricelist. Returns a dict of
+    card name -> list of {price, edition, is_foil} dicts, one per printing,
+    sorted non-foil-first then cheapest-first.
     """
     try:
         url = "https://api.cardkingdom.com/api/v2/pricelist"
@@ -55,24 +56,15 @@ def get_card_kingdom_pricelist():
                 except (ValueError, TypeError):
                     price = 0.0
 
-                if name and price > 0:
-                    card_info = {"price": price, "edition": edition}
+                if name and price > 0 and edition:
+                    ck_dict.setdefault(name, []).append(
+                        {"price": price, "edition": edition, "is_foil": is_foil}
+                    )
 
-                    if name not in ck_dict:
-                        ck_dict[name] = {"info": card_info, "is_foil": is_foil}
-                    else:
-                        existing = ck_dict[name]
-                        if not is_foil and existing["is_foil"]:
-                            # Non-foil overrides existing foil
-                            ck_dict[name] = {"info": card_info, "is_foil": False}
-                        elif (
-                            is_foil == existing["is_foil"]
-                            and price < existing["info"]["price"]
-                        ):
-                            # Same foil status, but cheaper price
-                            ck_dict[name] = {"info": card_info, "is_foil": is_foil}
+            for printings in ck_dict.values():
+                printings.sort(key=lambda p: (p["is_foil"], p["price"]))
 
-            return {name: val["info"] for name, val in ck_dict.items()}
+            return ck_dict
     except Exception:
         pass
     return {}
@@ -99,13 +91,19 @@ def sidebar_file_loader():
                     )
                     return
 
+                # ck_prices now maps a card name to a LIST of printings
+                # (sorted cheapest-first), not a single dict — take the
+                # cheapest printing (index 0) to refresh API/Edition.
                 ck_prices = st.session_state.get("ck_prices", {})
                 api_values = []
                 edition_values = []
                 for name in loaded_df["Name"]:
-                    card_data = ck_prices.get(name, {}) if isinstance(name, str) else {}
-                    api_values.append(card_data.get("price"))
-                    edition_values.append(card_data.get("edition"))
+                    printings = (
+                        ck_prices.get(name, []) if isinstance(name, str) else []
+                    )
+                    cheapest = printings[0] if printings else {}
+                    api_values.append(cheapest.get("price"))
+                    edition_values.append(cheapest.get("edition"))
 
                 loaded_df["API"] = api_values
                 loaded_df["Edition"] = edition_values

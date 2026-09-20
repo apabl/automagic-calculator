@@ -54,14 +54,19 @@ def ensure_columns(df):
     return new_df[CANONICAL_COLS]
 
 
-def build_row_from_ck(card_name):
-    """Look up a card's price/edition in ck_prices and build a single-row dict."""
-    card_data = st.session_state.ck_prices.get(card_name, {})
+def build_row_from_ck(card_name, printing=None):
+    """Look up a card's price/edition in ck_prices and build a single-row dict.
+    ck_prices now maps a card name to a list of printings (sorted cheapest first).
+    """
+    printings = st.session_state.ck_prices.get(card_name, [])
+
+    if printing is None:
+        printing = printings[0] if printings else {}
 
     return {
         "Name": card_name,
-        "API": normalize_value(card_data.get("price")),
-        "Edition": normalize_value(card_data.get("edition")),
+        "API": normalize_value(printing.get("price")),
+        "Edition": normalize_value(printing.get("edition")),
         "Qtty": 1,
     }
 
@@ -229,7 +234,11 @@ if "data" not in st.session_state:
         )
 
         sample_names.sort(
-            key=lambda name: st.session_state.ck_prices[name].get("price", 0),
+            key=lambda name: (
+                st.session_state.ck_prices[name][0]["price"]
+                if st.session_state.ck_prices[name]
+                else 0
+            ),
             reverse=True,
         )
 
@@ -401,7 +410,8 @@ def main_content():
 
     # Card selector — server-side filtered searchbox instead of a selectbox,
     # so only the small matched subset is sent to the browser per keystroke
-    # rather than the entire pricelist on every render.
+    # rather than the entire pricelist on every render. Wrapped in a narrow
+    # column since the searchbox has no width param of its own.
     search_col, _ = st.columns([1, 4])
 
     with search_col:
@@ -414,7 +424,9 @@ def main_content():
         )
 
     # Guard against re-adding the same card on a later rerun (e.g. editing a
-    # price cell afterward).
+    # price cell afterward) — the component's return value can stay "sticky"
+    # across reruns even with clear_on_submit, so only act on genuinely new
+    # selections.
     if selected_card and selected_card != st.session_state.get("_last_added_card"):
         st.session_state._last_added_card = selected_card
         add_card(selected_card)
