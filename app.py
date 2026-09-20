@@ -103,12 +103,12 @@ def update_qtty_editor():
     st.session_state.data = df
 
 
-def add_card(card_name):
-    """Append a card selected from the searchbox."""
+def add_card(card_name, printing=None):
+    """Append a card selected from the searchbox with a chosen printing."""
     if not card_name:
         return
 
-    new_row = pd.DataFrame([build_row_from_ck(card_name)])
+    new_row = pd.DataFrame([build_row_from_ck(card_name, printing=printing)])
     df = pd.concat(
         [st.session_state.data, new_row],
         ignore_index=True,
@@ -118,6 +118,31 @@ def add_card(card_name):
 
     # Force the upper editor to rebuild with the newly added row.
     st.session_state.base_editor_key += 1
+
+
+def handle_edition_selection():
+    """Callback triggered instantly when an edition is chosen from the dropdown."""
+    selected_label = st.session_state.get("edition_picker_selectbox")
+    pending_card = st.session_state.get("pending_card")
+
+    if (
+        pending_card
+        and selected_label
+        and selected_label != "--- Select an edition ---"
+    ):
+        printings = st.session_state.ck_prices.get(pending_card, [])
+        printing_options = {
+            f"{p.get('edition', 'Unknown')} — ${p.get('price', 0):.2f}": p
+            for p in printings
+        }
+        chosen_printing = printing_options.get(selected_label)
+        add_card(pending_card, chosen_printing)
+
+    # Clear all states completely so the dropdown disappears and search resets
+    st.session_state.pending_card = None
+    st.session_state._last_selected_card = None
+    st.session_state.pop("card_searchbox", None)
+    st.session_state.pop("edition_picker_selectbox", None)
 
 
 def search_cards(query: str):
@@ -408,10 +433,7 @@ def main_content():
             st.session_state.base_editor_key += 1
             st.rerun()
 
-    # Card selector — server-side filtered searchbox instead of a selectbox,
-    # so only the small matched subset is sent to the browser per keystroke
-    # rather than the entire pricelist on every render. Wrapped in a narrow
-    # column since the searchbox has no width param of its own.
+    # Card selector — server-side filtered searchbox
     search_col, _ = st.columns([1, 4])
 
     with search_col:
@@ -423,14 +445,39 @@ def main_content():
             rerun_scope="fragment",
         )
 
-    # Guard against re-adding the same card on a later rerun (e.g. editing a
-    # price cell afterward) — the component's return value can stay "sticky"
-    # across reruns even with clear_on_submit, so only act on genuinely new
-    # selections.
-    if selected_card and selected_card != st.session_state.get("_last_added_card"):
-        st.session_state._last_added_card = selected_card
-        add_card(selected_card)
+    # Trigger edition selection flow when a new card is selected from the searchbox
+    if selected_card and selected_card != st.session_state.get("_last_selected_card"):
+        st.session_state._last_selected_card = selected_card
+        st.session_state.pending_card = selected_card
         st.rerun(scope="fragment")
+
+    # Edition Selection UI Prompt when a card has been picked from search
+    pending_card = st.session_state.get("pending_card")
+    if pending_card:
+        printings = st.session_state.ck_prices.get(pending_card, [])
+
+        if printings:
+            st.markdown(f"**Choose edition for `{pending_card}`:**")
+            printing_options = {
+                f"{p.get('edition', 'Unknown')} — ${p.get('price', 0):.2f}": p
+                for p in printings
+            }
+
+            options_list = ["--- Select an edition ---"] + list(printing_options.keys())
+
+            st.selectbox(
+                "Select Edition",
+                options=options_list,
+                key="edition_picker_selectbox",
+                on_change=handle_edition_selection,
+                label_visibility="collapsed",
+            )
+        else:
+            # If no printings exist, add it automatically without edition
+            add_card(pending_card, None)
+            st.session_state.pending_card = None
+            st.session_state._last_selected_card = None
+            st.rerun(scope="fragment")
 
     input_df = st.session_state.data
     sidebar_file_saver(input_df)
