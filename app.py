@@ -140,11 +140,14 @@ def handle_edition_selection():
     selected_label = st.session_state.get("edition_picker_selectbox")
     pending_card = st.session_state.get("pending_card")
 
-    if pending_card and selected_label and selected_label != "--- Select an edition ---":
+    if (
+        pending_card
+        and selected_label
+        and selected_label != "--- Select an edition ---"
+    ):
         printings = st.session_state.ck_prices.get(pending_card, [])
         printing_options = {
-            f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p
-            for p in printings
+            f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p for p in printings
         }
         chosen_printing = printing_options.get(selected_label)
         add_card(pending_card, chosen_printing)
@@ -344,7 +347,7 @@ def main_content():
     locked_df = st.session_state.data[["Name", "Edition"]].copy()
     prices_df = st.session_state.data[["CK", "CS", "MM", "Ago"]].copy()
 
-    locked_col, prices_col, delete_col = st.columns([3, 4, 0.5], gap="xsmall")
+    locked_col, prices_col = st.columns([2.5, 4], gap="xsmall")
 
     with locked_col:
         st.dataframe(
@@ -358,7 +361,7 @@ def main_content():
                     width="medium",
                 ),
                 "Edition": st.column_config.TextColumn(
-                    "Edition",
+                    "🔒    Cheapest Edition",
                     width="medium",
                 ),
             },
@@ -397,45 +400,8 @@ def main_content():
             },
         )
 
-    with delete_col:
-        delete_df = pd.DataFrame(
-            {"Delete": [":material/delete:"] * len(st.session_state.data)}
-        )
-
-        st.dataframe(
-            delete_df,
-            height="content",
-            hide_index=True,
-            column_config={
-                "Delete": st.column_config.ButtonColumn(
-                    "Remove",
-                    help="Delete row",
-                    type="tertiary",
-                    key="delete_btn_click",
-                ),
-            },
-        )
-
-    # Handle row deletion when a delete button is clicked.
-    delete_click = st.session_state.get("delete_btn_click")
-
-    if delete_click is not None:
-        row_to_delete = (
-            delete_click.get("row")
-            if isinstance(delete_click, dict)
-            else getattr(delete_click, "row", None)
-        )
-
-        if row_to_delete is not None and row_to_delete in st.session_state.data.index:
-            st.session_state.data = st.session_state.data.drop(
-                index=row_to_delete
-            ).reset_index(drop=True)
-
-            st.session_state.base_editor_key += 1
-            st.rerun()
-
     # Card selector — server-side filtered searchbox
-    search_col, _ = st.columns([1, 3])
+    search_col, _ = st.columns([1, 4])
 
     with search_col:
         selected_card = st_searchbox(
@@ -446,39 +412,39 @@ def main_content():
             rerun_scope="fragment",
         )
 
-        # Trigger edition selection flow when a new card is selected from the searchbox
-        if selected_card and selected_card != st.session_state.get("_last_selected_card"):
-            st.session_state._last_selected_card = selected_card
-            st.session_state.pending_card = selected_card
+    # Trigger edition selection flow when a new card is selected from the searchbox
+    if selected_card and selected_card != st.session_state.get("_last_selected_card"):
+        st.session_state._last_selected_card = selected_card
+        st.session_state.pending_card = selected_card
+        st.rerun(scope="fragment")
+
+    # Edition Selection UI Prompt when a card has been picked from search
+    pending_card = st.session_state.get("pending_card")
+    if pending_card:
+        printings = st.session_state.ck_prices.get(pending_card, [])
+
+        if printings:
+            st.markdown(f"**Choose edition for `{pending_card}`:**")
+            printing_options = {
+                f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p
+                for p in printings
+            }
+
+            options_list = ["--- Select an edition ---"] + list(printing_options.keys())
+
+            st.selectbox(
+                "Select Edition",
+                options=options_list,
+                key="edition_picker_selectbox",
+                on_change=handle_edition_selection,
+                label_visibility="collapsed",
+            )
+        else:
+            # If no printings exist, add it automatically without edition
+            add_card(pending_card, None)
+            st.session_state.pending_card = None
+            st.session_state._last_selected_card = None
             st.rerun(scope="fragment")
-
-        # Edition Selection UI Prompt when a card has been picked from search
-        pending_card = st.session_state.get("pending_card")
-        if pending_card:
-            printings = st.session_state.ck_prices.get(pending_card, [])
-
-            if printings:
-                st.markdown(f"**Choose edition for `{pending_card}`:**")
-                printing_options = {
-                    f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p
-                    for p in printings
-                }
-
-                options_list = ["--- Select an edition ---"] + list(printing_options.keys())
-
-                st.selectbox(
-                    "Select Edition",
-                    options=options_list,
-                    key="edition_picker_selectbox",
-                    on_change=handle_edition_selection,
-                    label_visibility="collapsed",
-                )
-            else:
-                # If no printings exist, add it automatically without edition
-                add_card(pending_card, None)
-                st.session_state.pending_card = None
-                st.session_state._last_selected_card = None
-                st.rerun(scope="fragment")
 
     input_df = st.session_state.data
     sidebar_file_saver(input_df)
@@ -566,9 +532,46 @@ def main_content():
         }
     )
 
-    cols = st.columns([2, 1, 1, 1, 1], gap="xsmall")
+    cols = st.columns([0.5, 2, 1, 1, 1, 1], gap="xsmall")
 
     with cols[0]:
+        delete_df = pd.DataFrame(
+            {"Delete": [":material/delete:"] * len(st.session_state.data)}
+        )
+
+        st.dataframe(
+            delete_df,
+            height="content",
+            hide_index=True,
+            column_config={
+                "Delete": st.column_config.ButtonColumn(
+                    "Remove",
+                    help="Delete row",
+                    type="tertiary",
+                    key="delete_btn_click",
+                ),
+            },
+        )
+
+    # Handle row deletion when a delete button is clicked.
+    delete_click = st.session_state.get("delete_btn_click")
+
+    if delete_click is not None:
+        row_to_delete = (
+            delete_click.get("row")
+            if isinstance(delete_click, dict)
+            else getattr(delete_click, "row", None)
+        )
+
+        if row_to_delete is not None and row_to_delete in st.session_state.data.index:
+            st.session_state.data = st.session_state.data.drop(
+                index=row_to_delete
+            ).reset_index(drop=True)
+
+            st.session_state.base_editor_key += 1
+            st.rerun()
+
+    with cols[1]:
         st.data_editor(
             df_base,
             height="content",
@@ -591,7 +594,7 @@ def main_content():
             },
         )
 
-    with cols[1]:
+    with cols[2]:
         edited_ck = st.data_editor(
             df_ck,
             width="stretch",
@@ -621,7 +624,7 @@ def main_content():
         )
         st.write(card_count(ck_count))
 
-    with cols[2]:
+    with cols[3]:
         edited_cs = st.data_editor(
             df_cs,
             width="stretch",
@@ -651,7 +654,7 @@ def main_content():
         )
         st.write(card_count(cs_count))
 
-    with cols[3]:
+    with cols[4]:
         edited_mm = st.data_editor(
             df_mm,
             width="stretch",
@@ -681,7 +684,7 @@ def main_content():
         )
         st.write(card_count(mm_count))
 
-    with cols[4]:
+    with cols[5]:
         edited_ago = st.data_editor(
             df_ago,
             width="stretch",

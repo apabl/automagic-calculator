@@ -5,7 +5,7 @@ You can add cards and enter vendor reference prices in the top section, then man
 Three random cards are loaded as placeholders to showcase some of the app's functionality. Feel free to remove them and add your own!
 
 ##### How do I add or remove a card?
-Use the **"Add card"** dropdown below the main grid to search and select a card, then choose its specific edition from the dropdown that appears. To remove cards, click the trash icon on the right side of the row.
+Use the **"Add card"** dropdown below the main grid to search and select a card, then choose its specific edition from the dropdown that appears. To remove cards, click the trash icon on the left side of the bottom grid.
 
 ##### How is the Dólar Blue rate updated?
 The app automatically fetches the current Dólar Blue "venta" rate from the internet upon loading. You can also manually adjust the Agora Dólar reference from the sidebar.
