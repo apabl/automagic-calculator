@@ -333,8 +333,6 @@ st.sidebar.write("---")
 
 sidebar_file_loader()
 
-st.sidebar.subheader(f"Dólar Blue: **$ {dolar_blue:.0f}**")
-
 
 st.session_state.data = ensure_columns(st.session_state.data)
 
@@ -726,6 +724,8 @@ def main_content():
     st.markdown('<div id="faq-section"></div>', unsafe_allow_html=True)
     with st.expander(":material/help: Frequently Asked Questions (F.A.Q.)"):
         st.markdown(load_faq("faq.md"))
+
+    st.sidebar.subheader(f"Dólar Blue: **$ {dolar_blue:.0f}**")
 
 
 main_content()
