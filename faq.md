@@ -1,17 +1,17 @@
 ##### What is this app for?
-You add cards and enter vendor reference prices in the top section, then manage your quantities and check off items in the final prices section below. The app automatically computes everything in pesos, allowing you to easily compare all vendor options side by side.
+You can add cards and enter vendor reference prices in the top section, then manage your quantities and check off items in the final prices section below. The app automatically computes everything in pesos, allowing you to easily compare all vendor options side by side.
+
+##### Why are there cards I don't even know?
+Three random cards are loaded as placeholders to showcase some of the app's functionality. Feel free to remove them and add your own!
 
 ##### How do I add or remove a card?
 Use the **"Add card"** dropdown below the main grid to search and select a card, then choose its specific edition from the dropdown that appears. To remove cards, click the trash icon on the right side of the row.
 
-##### Why are there some cards I don't even know?
-Three random cards are loaded as placeholders to showcase some of the app's functionality. Feel free to remove them and add your own!
-
 ##### How is the Dólar Blue rate updated?
-The app automatically fetches the current Dólar Blue "venta" rate from the internet upon loading. You can also manually adjust the Agora Dólar Reference from the sidebar.
+The app automatically fetches the current Dólar Blue "venta" rate from the internet upon loading. You can also manually adjust the Agora Dólar reference from the sidebar.
 
-##### How are the "Cheapest Price" and "Cheapest Edition" columns updated?
-These values are automatically populated from Card Kingdom's pricelist when you add a card. Once added, they are locked in your table. To update them to the latest prices, simply remove the card and add it back again.
+##### How do I change the edition of a given card?
+Simply remove the card and add it back again with the correct edition.
 
 ##### What do the different columns represent?
 * **Card Kingdom** and **CoolStuffInc** use standard middleman service calculation rules. 
@@ -29,6 +29,7 @@ By default, most web browsers save files automatically to your computer's "Downl
 * **Chrome / Edge / Brave:** Go to **Settings > Downloads** and turn on **"Ask where to save each file before downloading"**.
 * **Firefox:** Go to **Settings > General > Files and Applications** and select **"Always ask you where to save files"**.
 
-##### Which fields are automated and which are manual?
-* **Automated:** Cheapest edition, cheapest price (set when a card is added, or refreshed on file load), and the current Dólar Blue rate.
-* **Manual:** Cards added/removed, quantities, vendor reference prices (CK, CS, MM, Ago), checkmarks, and the sidebar variables.
+##### Which fields and/or values are automated and which are manual?
+* **Automated:** Edition (chosen when the card is added), Dólar Blue rate.
+* **Automated and editable:** Card Kingdom price, sidebar variables.
+* **Manual:** Cards added/removed, quantities, other vendor reference prices (CS, MM, Ago), checkmarks.

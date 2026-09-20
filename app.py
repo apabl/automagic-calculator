@@ -15,7 +15,7 @@ from utils import (
 st.set_page_config(page_title="Automagic Calculator", layout="wide")
 
 
-CANONICAL_COLS = ["Name", "API", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
+CANONICAL_COLS = ["Name", "Edition", "Qtty", "CK", "CS", "MM", "Ago"]
 
 
 def normalize_value(value):
@@ -54,6 +54,21 @@ def ensure_columns(df):
     return new_df[CANONICAL_COLS]
 
 
+def format_edition_name(printing):
+    """Format edition name, prefixing with 'Foil - ' if it's a foil printing."""
+    if not printing:
+        return None
+
+    edition = printing.get("edition", "Unknown")
+    is_foil = printing.get("foil") or printing.get("is_foil") or False
+
+    if isinstance(is_foil, str):
+        is_foil = is_foil.lower() in ["true", "1", "yes", "foil"]
+
+    prefix = "Foil - " if is_foil else ""
+    return f"{prefix}{edition}"
+
+
 def build_row_from_ck(card_name, printing=None):
     """Look up a card's price/edition in ck_prices and build a single-row dict.
     ck_prices now maps a card name to a list of printings (sorted cheapest first).
@@ -65,8 +80,8 @@ def build_row_from_ck(card_name, printing=None):
 
     return {
         "Name": card_name,
-        "API": normalize_value(printing.get("price")),
-        "Edition": normalize_value(printing.get("edition")),
+        "CK": normalize_value(printing.get("price")),
+        "Edition": normalize_value(format_edition_name(printing)),
         "Qtty": 1,
     }
 
@@ -125,14 +140,10 @@ def handle_edition_selection():
     selected_label = st.session_state.get("edition_picker_selectbox")
     pending_card = st.session_state.get("pending_card")
 
-    if (
-        pending_card
-        and selected_label
-        and selected_label != "--- Select an edition ---"
-    ):
+    if pending_card and selected_label and selected_label != "--- Select an edition ---":
         printings = st.session_state.ck_prices.get(pending_card, [])
         printing_options = {
-            f"{p.get('edition', 'Unknown')} — ${p.get('price', 0):.2f}": p
+            f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p
             for p in printings
         }
         chosen_printing = printing_options.get(selected_label)
@@ -329,15 +340,13 @@ def main_content():
 
     st.subheader("1. Enter Base Values")
 
-    # Split into three independent widgets
-    locked_df = st.session_state.data[["Name", "API", "Edition"]].copy()
+    # Split into two independent widgets
+    locked_df = st.session_state.data[["Name", "Edition"]].copy()
     prices_df = st.session_state.data[["CK", "CS", "MM", "Ago"]].copy()
 
     locked_col, prices_col, delete_col = st.columns([3, 4, 0.5], gap="xsmall")
 
     with locked_col:
-        # Read-only, so st.dataframe is enough — no editor state to manage
-        # and no risk of it remounting when the prices grid is edited.
         st.dataframe(
             locked_df,
             width="stretch",
@@ -348,14 +357,8 @@ def main_content():
                     "Card Name",
                     width="medium",
                 ),
-                "API": st.column_config.NumberColumn(
-                    "🔒    Cheap Price",
-                    format="%.2f",
-                    step=0.01,
-                    width="small",
-                ),
                 "Edition": st.column_config.TextColumn(
-                    "🔒    Cheapest Edition",
+                    "Edition",
                     width="medium",
                 ),
             },
@@ -395,8 +398,6 @@ def main_content():
         )
 
     with delete_col:
-        # st.dataframe (not data_editor) is enough here since ButtonColumn is
-        # inherently read-only and there's no other editable state in this grid.
         delete_df = pd.DataFrame(
             {"Delete": [":material/delete:"] * len(st.session_state.data)}
         )
@@ -434,7 +435,7 @@ def main_content():
             st.rerun()
 
     # Card selector — server-side filtered searchbox
-    search_col, _ = st.columns([1, 4])
+    search_col, _ = st.columns([1, 3])
 
     with search_col:
         selected_card = st_searchbox(
@@ -445,39 +446,39 @@ def main_content():
             rerun_scope="fragment",
         )
 
-    # Trigger edition selection flow when a new card is selected from the searchbox
-    if selected_card and selected_card != st.session_state.get("_last_selected_card"):
-        st.session_state._last_selected_card = selected_card
-        st.session_state.pending_card = selected_card
-        st.rerun(scope="fragment")
-
-    # Edition Selection UI Prompt when a card has been picked from search
-    pending_card = st.session_state.get("pending_card")
-    if pending_card:
-        printings = st.session_state.ck_prices.get(pending_card, [])
-
-        if printings:
-            st.markdown(f"**Choose edition for `{pending_card}`:**")
-            printing_options = {
-                f"{p.get('edition', 'Unknown')} — ${p.get('price', 0):.2f}": p
-                for p in printings
-            }
-
-            options_list = ["--- Select an edition ---"] + list(printing_options.keys())
-
-            st.selectbox(
-                "Select Edition",
-                options=options_list,
-                key="edition_picker_selectbox",
-                on_change=handle_edition_selection,
-                label_visibility="collapsed",
-            )
-        else:
-            # If no printings exist, add it automatically without edition
-            add_card(pending_card, None)
-            st.session_state.pending_card = None
-            st.session_state._last_selected_card = None
+        # Trigger edition selection flow when a new card is selected from the searchbox
+        if selected_card and selected_card != st.session_state.get("_last_selected_card"):
+            st.session_state._last_selected_card = selected_card
+            st.session_state.pending_card = selected_card
             st.rerun(scope="fragment")
+
+        # Edition Selection UI Prompt when a card has been picked from search
+        pending_card = st.session_state.get("pending_card")
+        if pending_card:
+            printings = st.session_state.ck_prices.get(pending_card, [])
+
+            if printings:
+                st.markdown(f"**Choose edition for `{pending_card}`:**")
+                printing_options = {
+                    f"{format_edition_name(p)} — ${p.get('price', 0):.2f}": p
+                    for p in printings
+                }
+
+                options_list = ["--- Select an edition ---"] + list(printing_options.keys())
+
+                st.selectbox(
+                    "Select Edition",
+                    options=options_list,
+                    key="edition_picker_selectbox",
+                    on_change=handle_edition_selection,
+                    label_visibility="collapsed",
+                )
+            else:
+                # If no printings exist, add it automatically without edition
+                add_card(pending_card, None)
+                st.session_state.pending_card = None
+                st.session_state._last_selected_card = None
+                st.rerun(scope="fragment")
 
     input_df = st.session_state.data
     sidebar_file_saver(input_df)
